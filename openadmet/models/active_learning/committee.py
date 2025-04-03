@@ -1,7 +1,6 @@
 from typing import ClassVar
 
 from modAL import ActiveLearner, CommitteeRegressor
-from pydantic import BaseModel
 
 from openadmet.models.active_learning.acquisition import (
     expected_improvement_query,
@@ -13,7 +12,7 @@ from openadmet.models.active_learning.acquisition import (
     thompson_sampling_query,
     upper_confidence_bound_query,
 )
-from openadmet.models.architecture.model_base import models
+from openadmet.models.architecture.model_base import PickleableModelBase, models
 
 _QUERY_STRATEGIES = {
     "max-uncertainty-reduction": max_uncertainty_reduction_query,
@@ -28,7 +27,7 @@ _QUERY_STRATEGIES = {
 
 
 @models.register("ActiveLearningCommitteeRegressor")
-class ActiveLearningCommitteeRegressor(BaseModel):
+class ActiveLearningCommitteeRegressor(PickleableModelBase):
     """
     Committee regressor for active learning
     """
@@ -51,11 +50,14 @@ class ActiveLearningCommitteeRegressor(BaseModel):
                 f"Valid options are: {list(_QUERY_STRATEGIES.keys())}"
             )
 
-        instance = cls(models, query_strategy=_QUERY_STRATEGIES[query_strategy])
-        instance._build()
+        instance = cls(
+            models=models,
+            query_strategy=query_strategy,
+        )
+        instance.build()
         return instance
 
-    def _build(self):
+    def build(self):
         """
         Build the committee regressor from the list of models and query strategy.
         """
@@ -65,7 +67,7 @@ class ActiveLearningCommitteeRegressor(BaseModel):
 
         # Assemble committee
         committee = CommitteeRegressor(
-            learner_list=learners, query_strategy=self.query_strategy
+            learner_list=learners, query_strategy=_QUERY_STRATEGIES[self.query_strategy]
         )
 
         self._committee = committee
@@ -110,3 +112,9 @@ class ActiveLearningCommitteeRegressor(BaseModel):
         """
 
         return self._committee.predict(X, **kwargs)
+
+    def train(self):
+        raise NotImplementedError
+
+    def from_params(self):
+        raise NotImplementedError
