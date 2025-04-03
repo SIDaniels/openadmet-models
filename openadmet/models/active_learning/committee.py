@@ -1,6 +1,7 @@
 from typing import ClassVar
 
 from modAL import ActiveLearner, CommitteeRegressor
+from pydantic import BaseModel
 
 from openadmet.models.active_learning.acquisition import (
     expected_improvement_query,
@@ -12,7 +13,7 @@ from openadmet.models.active_learning.acquisition import (
     thompson_sampling_query,
     upper_confidence_bound_query,
 )
-from openadmet.models.architecture.model_base import PickleableModelBase, models
+from openadmet.models.architecture.model_base import models
 
 _QUERY_STRATEGIES = {
     "max-uncertainty-reduction": max_uncertainty_reduction_query,
@@ -21,13 +22,13 @@ _QUERY_STRATEGIES = {
     "max-expected-improvement": expected_improvement_query,
     "upper-confidence-bound": upper_confidence_bound_query,
     "thompson-sampling": thompson_sampling_query,
-    "knoweldge-gradient": knowledge_gradient_query,
+    "knowledge-gradient": knowledge_gradient_query,
     "random": random_query,
 }
 
 
 @models.register("ActiveLearningCommitteeRegressor")
-class ActiveLearningCommitteeRegressor(PickleableModelBase):
+class ActiveLearningCommitteeRegressor(BaseModel):
     """
     Committee regressor for active learning
     """
