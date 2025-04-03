@@ -18,14 +18,13 @@ from openadmet.models.architecture.chemprop import *  # noqa: F401 F403
 # models
 from openadmet.models.architecture.lgbm import *  # noqa: F401 F403
 from openadmet.models.architecture.model_base import models  # noqa: F401  F403
-
+from openadmet.models.active_learning.acquisition import *  # noqa: F401 F403
+from openadmet.models.active_learning.committee import *  # noqa: F401 F403
 
 # splitters
 from openadmet.models.split.sklearn import *  # noqa: F401 F403
 from openadmet.models.split.scaffold import *  # noqa: F401 F403
 from openadmet.models.split.split_base import splitters  # noqa: F401 F403
-
-
 
 # trainers
 from openadmet.models.trainer.sklearn import *  # noqa: F401 F403
