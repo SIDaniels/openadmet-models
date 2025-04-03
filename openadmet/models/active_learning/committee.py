@@ -2,7 +2,7 @@ from typing import ClassVar
 
 from modAL import ActiveLearner, CommitteeRegressor
 
-from openadmet.models.active_learning.query_strategies import (
+from openadmet.models.active_learning.acquisition import (
     expected_improvement_query,
     exploitation_query,
     knowledge_gradient_query,
