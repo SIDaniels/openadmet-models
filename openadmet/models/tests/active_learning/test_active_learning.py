@@ -11,16 +11,16 @@ from openadmet.models.architecture.lgbm import LGBMRegressorModel
 @pytest.fixture
 def train_data():
     np.random.seed(42)
-    X = np.random.rand((100, 10))
-    y = np.random.rand((100, 1))
+    X = np.random.rand(100, 10)
+    y = np.random.rand(100, 1)
     return X, y
 
 
 @pytest.fixture
 def eval_data():
     np.random.seed(1234)
-    X = np.random.rand((100, 10))
-    y = np.random.rand((100, 1))
+    X = np.random.rand(100, 10)
+    y = np.random.rand(100, 1)
     return X, y
 
 
