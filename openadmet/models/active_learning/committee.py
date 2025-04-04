@@ -12,7 +12,7 @@ from openadmet.models.active_learning.acquisition import (
     thompson_sampling_query,
     upper_confidence_bound_query,
 )
-from openadmet.models.architecture.model_base import PickleableModelBase, models
+from openadmet.models.architecture.model_base import PickleableModelBase
 
 _QUERY_STRATEGIES = {
     "max-uncertainty-reduction": max_uncertainty_reduction_query,
@@ -26,7 +26,7 @@ _QUERY_STRATEGIES = {
 }
 
 
-@models.register("ActiveLearningCommitteeRegressor")
+# @models.register("ActiveLearningCommitteeRegressor")
 class ActiveLearningCommitteeRegressor(PickleableModelBase):
     """
     Committee regressor for active learning
