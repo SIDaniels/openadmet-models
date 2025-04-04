@@ -1,9 +1,9 @@
 from typing import ClassVar
 
 from modAL import ActiveLearner, CommitteeRegressor
+from pydantic import Field, field_validator
 
 from openadmet.models.active_learning.acquisition import (
-    expected_improvement_query,
     exploitation_query,
     knowledge_gradient_query,
     max_uncertainty_reduction_query,
@@ -18,7 +18,7 @@ _QUERY_STRATEGIES = {
     "max-uncertainty-reduction": max_uncertainty_reduction_query,
     "exploitation": exploitation_query,
     "mutual-information": mutual_information_query,
-    "max-expected-improvement": expected_improvement_query,
+    # "max-expected-improvement": expected_improvement_query,
     "upper-confidence-bound": upper_confidence_bound_query,
     "thompson-sampling": thompson_sampling_query,
     "knowledge-gradient": knowledge_gradient_query,
@@ -34,21 +34,31 @@ class ActiveLearningCommitteeRegressor(PickleableModelBase):
 
     type: ClassVar[str] = "ActiveLearningCommitteeRegressor"
     models: list = []
-    query_strategy: str = None
+    query_strategy: str = Field(
+        ...,
+        title="Query strategy",
+        description=f"The query strategy to use. Valid options are: {list(_QUERY_STRATEGIES.keys())}",
+    )
     _committee: CommitteeRegressor = None
+
+    @field_validator("query_strategy")
+    @classmethod
+    def validate_query_strategy(cls, value):
+        """
+        Validate the descriptor type
+        """
+        if value not in _QUERY_STRATEGIES.keys():
+            raise ValueError(
+                f"Query strategy {value} is not valid. "
+                f"Valid options are: {list(_QUERY_STRATEGIES.keys())}"
+            )
+        return value
 
     @classmethod
     def from_models(cls, models: list = [], query_strategy: str = None):
         """
         Create a committee from list of models.
         """
-
-        # Check that query strategy is valid according to _QUERY_STRATEGIES
-        if query_strategy not in _QUERY_STRATEGIES:
-            raise ValueError(
-                f"Query strategy {query_strategy} is not valid. "
-                f"Valid options are: {list(_QUERY_STRATEGIES.keys())}"
-            )
 
         instance = cls(
             models=models,
