@@ -8,7 +8,7 @@ def max_uncertainty_reduction_query(regressor, X, n_instances=1):
     Parameters
     ----------
     regressor : estimator object
-        Regressor.
+        Regressor with `predict(X, return_std=True)`.
     X : np.array
         Pool of examples.
 
@@ -34,7 +34,7 @@ def exploitation_query(regressor, X, n_instances=1):
     Parameters
     ----------
     regressor : estimator object
-        Regressor.
+        Regressor with `predict(X, return_std=True)`.
     X : np.array
         Pool of examples.
     n_instances : int
@@ -62,7 +62,7 @@ def mutual_information_query(regressor, X, n_instances=1):
     Parameters
     ----------
     regressor : estimator object
-        Gaussian Process regressor with `predict(X, return_std=True)`.
+        Regressor with `predict(X, return_std=True)`.
     X : np.array
         Pool of examples.
     n_instances : int
@@ -94,7 +94,7 @@ def expected_improvement_query(regressor, X, best_y, n_instances=1, xi=0.01):
     Parameters
     ----------
     regressor : estimator object
-        Gaussian Process regressor.
+        Regressor with `predict(X, return_std=True)`.
     X : np.array
         Pool of examples.
     best_y : float
@@ -130,7 +130,7 @@ def upper_confidence_bound_query(regressor, X, n_instances=1, beta=2.0):
     Parameters
     ----------
     regressor : estimator object
-        Gaussian Process regressor.
+        Regressor with `predict(X, return_std=True)`.
     X : np.array
         Pool of examples.
     n_instances : int
@@ -162,7 +162,7 @@ def thompson_sampling_query(regressor, X, n_instances=1):
     Parameters
     ----------
     regressor : estimator object
-        Gaussian Process regressor.
+        Regressor with `predict(X, return_std=True)`.
     X : np.array
         Pool of examples.
     n_instances : int
@@ -192,7 +192,7 @@ def knowledge_gradient_query(regressor, X, n_instances=1):
     Parameters
     ----------
     regressor : estimator object
-        Gaussian Process regressor.
+        Regressor with `predict(X, return_std=True)`.
     X : np.array
         Pool of examples.
     n_instances : int
