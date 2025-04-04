@@ -3,8 +3,8 @@ from scipy.stats import norm
 
 
 def max_uncertainty_reduction_query(regressor, X, n_instances=1):
-    """Maximum uncertainty reduction acquisition function. Refines an already well-performing model.
-    
+    r"""Maximum uncertainty reduction acquisition function. Refines an already well-performing model.
+
     .. math::
 
         x_{\text{next}} = \arg\max_x \sigma(x)
@@ -42,7 +42,7 @@ def max_uncertainty_reduction_query(regressor, X, n_instances=1):
 
 
 def exploitation_query(regressor, X, n_instances=1):
-    """Returns the instances within `X` with highest predicted values.
+    r"""Returns the instances within `X` with highest predicted values.
 
     Parameters
     ----------
@@ -71,7 +71,7 @@ def exploitation_query(regressor, X, n_instances=1):
 
 
 def mutual_information_query(regressor, X, n_instances=1):
-    """Selects instances with the highest mutual information, i.e., where predictions are both uncertain and informative.
+    r"""Selects instances with the highest mutual information, i.e., where predictions are both uncertain and informative.
 
     .. math::
 
@@ -79,7 +79,7 @@ def mutual_information_query(regressor, X, n_instances=1):
 
     Where:
         - \\( \sigma^2(x) \\): Predictive variance at \\( x \\)
-    
+
     Parameters
     ----------
     regressor : estimator object
@@ -115,9 +115,9 @@ def mutual_information_query(regressor, X, n_instances=1):
 
 
 def expected_improvement_query(regressor, X, best_y, n_instances=1, xi=0.01):
-    """
+    r"""
     Expected Improvement (EI) acquisition function. Balances exploration and exploitation.
-    
+
     .. math::
 
         EI(x) = (\mu(x) - f^* - \xi) \cdot \Phi(Z) + \sigma(x) \cdot \phi(Z)
@@ -171,9 +171,9 @@ def expected_improvement_query(regressor, X, best_y, n_instances=1, xi=0.01):
 
 
 def upper_confidence_bound_query(regressor, X, n_instances=1, beta=2.0):
-    """
+    r"""
     Upper Confidence Bound (UCB) acquisition function. Ensures exploration while still considering high predictions.
-    
+
     .. math::
 
         UCB(x) = \mu(x) + \beta \cdot \sigma(x)
@@ -217,10 +217,10 @@ def upper_confidence_bound_query(regressor, X, n_instances=1, beta=2.0):
 
 
 def thompson_sampling_query(regressor, X, n_instances=1):
-    """
+    r"""
     Thompson Sampling acquisition function. Injects stochasticity into the selection process,
     making exploration more adaptive.
-    
+
     .. math::
 
         f^{(s)}(x) \sim \mathcal{GP}(\mu(x), \sigma^2(x))
@@ -263,7 +263,7 @@ def thompson_sampling_query(regressor, X, n_instances=1):
 
 
 def random_query(regressor, X, n_instances=1):
-    """
+    r"""
     Random acquisition function. Randomly selects points from the pool. Useful as null model.
 
     Parameters
