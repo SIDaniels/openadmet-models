@@ -5,7 +5,6 @@ from pydantic import Field, field_validator
 
 from openadmet.models.active_learning.acquisition import (
     exploitation_query,
-    knowledge_gradient_query,
     max_uncertainty_reduction_query,
     mutual_information_query,
     random_query,
@@ -18,10 +17,9 @@ _QUERY_STRATEGIES = {
     "max-uncertainty-reduction": max_uncertainty_reduction_query,
     "exploitation": exploitation_query,
     "mutual-information": mutual_information_query,
-    # "max-expected-improvement": expected_improvement_query,
-    "upper-confidence-bound": upper_confidence_bound_query,
+    # "max-expected-improvement": expected_improvement_query,  # Need to incorporate `best_y`
+    "upper-confidence-bound": upper_confidence_bound_query,  # `beta` should be configurable
     "thompson-sampling": thompson_sampling_query,
-    "knowledge-gradient": knowledge_gradient_query,
     "random": random_query,
 }
 

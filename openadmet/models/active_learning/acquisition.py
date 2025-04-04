@@ -4,6 +4,13 @@ from scipy.stats import norm
 
 def max_uncertainty_reduction_query(regressor, X, n_instances=1):
     """Maximum uncertainty reduction acquisition function. Refines an already well-performing model.
+    
+    .. math::
+
+        x_{\text{next}} = \arg\max_x \sigma(x)
+
+    Where:
+        - \\( \sigma(x) \\): Predictive standard deviation at \\( x \\)
 
     Parameters
     ----------
@@ -18,6 +25,12 @@ def max_uncertainty_reduction_query(regressor, X, n_instances=1):
         Query index.
     X_i : np.array
         Query instance.
+
+    References
+    ----------
+    .. [1] Cohn, D., Ghahramani, Z., & Jordan, M. I. (1996). Active Learning with Statistical Models.
+    Journal of Artificial Intelligence Research, 4, 129–145.
+
     """
     # Predict on available points
     _, std = regressor.predict(X, return_std=True)
@@ -29,7 +42,7 @@ def max_uncertainty_reduction_query(regressor, X, n_instances=1):
 
 
 def exploitation_query(regressor, X, n_instances=1):
-    """Returns the instance within `X` with highest predicted value.
+    """Returns the instances within `X` with highest predicted values.
 
     Parameters
     ----------
@@ -46,6 +59,7 @@ def exploitation_query(regressor, X, n_instances=1):
         Query index.
     X_i : np.array
         Query instance.
+
     """
     # Predict on available points
     preds, _ = regressor.predict(X, return_std=True)
@@ -59,6 +73,13 @@ def exploitation_query(regressor, X, n_instances=1):
 def mutual_information_query(regressor, X, n_instances=1):
     """Selects instances with the highest mutual information, i.e., where predictions are both uncertain and informative.
 
+    .. math::
+
+        I[y; \theta | x] \propto \log(1 + \sigma^2(x))
+
+    Where:
+        - \\( \sigma^2(x) \\): Predictive variance at \\( x \\)
+    
     Parameters
     ----------
     regressor : estimator object
@@ -74,6 +95,12 @@ def mutual_information_query(regressor, X, n_instances=1):
         Query index.
     X_i : np.array
         Query instance.
+
+    References
+    ----------
+    .. [1] Houlsby, N., Huszár, F., Ghahramani, Z., & Lengyel, M. (2011).
+    Bayesian Active Learning for Classification and Preference Learning. arXiv preprint arXiv:1112.5745.
+
     """
     # Predict mean and standard deviation
     mean, std = regressor.predict(X, return_std=True)
@@ -90,6 +117,20 @@ def mutual_information_query(regressor, X, n_instances=1):
 def expected_improvement_query(regressor, X, best_y, n_instances=1, xi=0.01):
     """
     Expected Improvement (EI) acquisition function. Balances exploration and exploitation.
+    
+    .. math::
+
+        EI(x) = (\mu(x) - f^* - \xi) \cdot \Phi(Z) + \sigma(x) \cdot \phi(Z)
+
+        Z = \frac{\mu(x) - f^* - \xi}{\sigma(x)}
+
+    Where:
+        - \\( \mu(x) \\): Predictive mean at \\( x \\)
+        - \\( \sigma(x) \\): Predictive standard deviation at \\( x \\)
+        - \\( f^* \\): Best observed value so far
+        - \\( \xi \\): Small positive number to encourage exploration
+        - \\( \Phi(Z) \\): CDF of standard normal distribution
+        - \\( \phi(Z) \\): PDF of standard normal distribution
 
     Parameters
     ----------
@@ -110,6 +151,12 @@ def expected_improvement_query(regressor, X, best_y, n_instances=1, xi=0.01):
         Query index.
     X_i : np.array
         Query instance.
+
+    References
+    ----------
+    .. [1] Jones, D. R., Schonlau, M., & Welch, W. J. (1998). Efficient global optimization of expensive black-box
+    functions. Journal of Global Optimization, 13(4), 455–492.
+
     """
     mean, std = regressor.predict(X, return_std=True)
     std = std.clip(min=1e-9)  # Avoid division by zero
@@ -126,6 +173,15 @@ def expected_improvement_query(regressor, X, best_y, n_instances=1, xi=0.01):
 def upper_confidence_bound_query(regressor, X, n_instances=1, beta=2.0):
     """
     Upper Confidence Bound (UCB) acquisition function. Ensures exploration while still considering high predictions.
+    
+    .. math::
+
+        UCB(x) = \mu(x) + \beta \cdot \sigma(x)
+
+    Where:
+        - \\( \mu(x) \\): Predictive mean at \\( x \\)
+        - \\( \sigma(x) \\): Predictive standard deviation at \\( x \\)
+        - \\( \beta \\): Trade-off parameter (higher \\( \beta \\) favors exploration)
 
     Parameters
     ----------
@@ -144,6 +200,12 @@ def upper_confidence_bound_query(regressor, X, n_instances=1, beta=2.0):
         Query index.
     X_i : np.array
         Query instance.
+
+    References
+    ----------
+    .. [1] Srinivas, N., Krause, A., Kakade, S. M., & Seeger, M. (2010). Gaussian Process Optimization in the Bandit
+    Setting: No Regret and Experimental Design. ICML.
+
     """
     mean, std = regressor.predict(X, return_std=True)
 
@@ -158,6 +220,16 @@ def thompson_sampling_query(regressor, X, n_instances=1):
     """
     Thompson Sampling acquisition function. Injects stochasticity into the selection process,
     making exploration more adaptive.
+    
+    .. math::
+
+        f^{(s)}(x) \sim \mathcal{GP}(\mu(x), \sigma^2(x))
+
+        x_{\text{next}} = \arg\max_x f^{(s)}(x)
+
+    Where:
+        - \\( f^{(s)}(x) \\): A single sample drawn from the GP posterior at \\( x \\)
+        - \\( \mu(x), \sigma^2(x) \\): Predictive mean and variance from the model
 
     Parameters
     ----------
@@ -174,43 +246,18 @@ def thompson_sampling_query(regressor, X, n_instances=1):
         Query index.
     X_i : np.array
         Query instance.
+
+    References
+    ----------
+    .. [1] Russo, D., Roy, B. V., Kazerouni, A., Osband, I., & Wen, Z. (2018). A Tutorial on Thompson Sampling.
+    Foundations and Trends in Machine Learning, 11(1), 1–96.
+
     """
     mean, std = regressor.predict(X, return_std=True)
 
-    sampled_values = np.random.normal(mean, std)  # Sample from GP posterior
+    sampled_values = np.random.normal(mean, std)  # Sample from posterior
 
     query_idx = np.argsort(sampled_values)[-n_instances:]
-
-    return query_idx, X[query_idx]
-
-
-def knowledge_gradient_query(regressor, X, n_instances=1):
-    """
-    Knowledge Gradient (KG) acquisition function. Explicitly models how knowledge gained now will benefit future
-    queries.
-
-    Parameters
-    ----------
-    regressor : estimator object
-        Regressor with `predict(X, return_std=True)`.
-    X : np.array
-        Pool of examples.
-    n_instances : int
-        Number of instances to select.
-
-    Returns
-    -------
-    query_idx : int
-        Query index.
-    X_i : np.array
-        Query instance.
-    """
-    mean, std = regressor.predict(X, return_std=True)
-
-    # KG approximation: prioritize points where std is large but also high mean
-    kg = mean + 0.5 * std
-
-    query_idx = np.argsort(kg)[-n_instances:]
 
     return query_idx, X[query_idx]
 
@@ -231,9 +278,10 @@ def random_query(regressor, X, n_instances=1):
     Returns
     -------
     query_idx : int
-        Query index.
+        Query index.ex
     X_i : np.array
         Query instance.
+
     """
     query_idx = np.random.choice(X.shape[0], n_instances, replace=False)
 
