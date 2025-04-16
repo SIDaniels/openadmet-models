@@ -70,50 +70,6 @@ def exploitation_query(regressor, X, n_instances=1):
     return query_idx, X[query_idx]
 
 
-def mutual_information_query(regressor, X, n_instances=1):
-    r"""Selects instances with the highest mutual information, i.e., where predictions are both uncertain and informative.
-
-    .. math::
-
-        I[y; \theta | x] \propto \log(1 + \sigma^2(x))
-
-    Where:
-        - \\( \sigma^2(x) \\): Predictive variance at \\( x \\)
-
-    Parameters
-    ----------
-    regressor : estimator object
-        Regressor with `predict(X, return_std=True)`.
-    X : np.array
-        Pool of examples.
-    n_instances : int
-        Number of instances.
-
-    Returns
-    -------
-    index : int
-        Query index.
-    X_i : np.array
-        Query instance.
-
-    References
-    ----------
-    .. [1] Houlsby, N., Huszár, F., Ghahramani, Z., & Lengyel, M. (2011).
-    Bayesian Active Learning for Classification and Preference Learning. arXiv preprint arXiv:1112.5745.
-
-    """
-    # Predict mean and standard deviation
-    mean, std = regressor.predict(X, return_std=True)
-
-    # Compute mutual information estimate: log variance-based heuristic
-    mutual_info = 0.5 * np.log(1 + (std**2))
-
-    # Select points with highest mutual information
-    query_idx = np.argsort(mutual_info)[-n_instances:]
-
-    return query_idx, X[query_idx]
-
-
 def probability_improvement_query(regressor, X, best_y, n_instances=1, xi=0.01):
     r"""
     Probability Improvement (PI) acquisition function. Balances exploration and exploitation.
