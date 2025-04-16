@@ -6,9 +6,7 @@ from pydantic import Field, field_validator
 from openadmet.models.active_learning.acquisition import (
     exploitation_query,
     max_uncertainty_reduction_query,
-    mutual_information_query,
     random_query,
-    thompson_sampling_query,
     upper_confidence_bound_query,
 )
 from openadmet.models.architecture.model_base import PickleableModelBase
@@ -16,10 +14,9 @@ from openadmet.models.architecture.model_base import PickleableModelBase
 _QUERY_STRATEGIES = {
     "max-uncertainty-reduction": max_uncertainty_reduction_query,
     "exploitation": exploitation_query,
-    "mutual-information": mutual_information_query,
     # "max-expected-improvement": expected_improvement_query,  # Need to incorporate `best_y`
+    # "max-probability-improvement": probability_improvement_query,  # Need to incorporate `best_y`
     "upper-confidence-bound": upper_confidence_bound_query,  # `beta` should be configurable
-    "thompson-sampling": thompson_sampling_query,
     "random": random_query,
 }
 
