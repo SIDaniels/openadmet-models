@@ -216,52 +216,6 @@ def upper_confidence_bound_query(regressor, X, n_instances=1, beta=2.0):
     return query_idx, X[query_idx]
 
 
-def thompson_sampling_query(regressor, X, n_instances=1):
-    r"""
-    Thompson Sampling acquisition function. Injects stochasticity into the selection process,
-    making exploration more adaptive.
-
-    .. math::
-
-        f^{(s)}(x) \sim \mathcal{GP}(\mu(x), \sigma^2(x))
-
-        x_{\text{next}} = \arg\max_x f^{(s)}(x)
-
-    Where:
-        - \\( f^{(s)}(x) \\): A single sample drawn from the GP posterior at \\( x \\)
-        - \\( \mu(x), \sigma^2(x) \\): Predictive mean and variance from the model
-
-    Parameters
-    ----------
-    regressor : estimator object
-        Regressor with `predict(X, return_std=True)`.
-    X : np.array
-        Pool of examples.
-    n_instances : int
-        Number of instances to select.
-
-    Returns
-    -------
-    query_idx : int
-        Query index.
-    X_i : np.array
-        Query instance.
-
-    References
-    ----------
-    .. [1] Russo, D., Roy, B. V., Kazerouni, A., Osband, I., & Wen, Z. (2018). A Tutorial on Thompson Sampling.
-    Foundations and Trends in Machine Learning, 11(1), 1–96.
-
-    """
-    mean, std = regressor.predict(X, return_std=True)
-
-    sampled_values = np.random.normal(mean, std)  # Sample from posterior
-
-    query_idx = np.argsort(sampled_values)[-n_instances:]
-
-    return query_idx, X[query_idx]
-
-
 def random_query(regressor, X, n_instances=1):
     r"""
     Random acquisition function. Randomly selects points from the pool. Useful as null model.
