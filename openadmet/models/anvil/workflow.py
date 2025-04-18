@@ -425,6 +425,8 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         self.trainer.prepare()
         logger.info("Trainer prepared")
 
+
+
         logger.info("Training model")
         self.model = self.trainer.train(train_dataloader)
         logger.info("Model trained")

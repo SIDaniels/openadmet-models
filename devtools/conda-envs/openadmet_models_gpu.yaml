@@ -29,6 +29,17 @@ dependencies:
   - pytorch-lightning
   - cudatoolkit
   - wandb
+  - statsmodels
+  - mdanalysis
+
+  # mtenn
+  - pytorch_geometric
+  - pytorch_cluster
+  - pytorch_scatter
+  - pytorch_sparse
+  - h5py
+  - e3nn
+  - ase
 
     # Testing
   - pytest
@@ -39,3 +50,5 @@ dependencies:
   - pip:
     - phx-class-registry
     - email-validator
+    - git+https://github.com/OpenADMET/mtenn.git@remove_dgl
+   # - git+https://github.com/choderalab/mtenn.git@main
