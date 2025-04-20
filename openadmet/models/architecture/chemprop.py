@@ -43,7 +43,7 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
         return value
 
 
-    @field_validator("model_params")
+    @field_validator("aggregation")
     @classmethod
     def validate_aggregation(cls, value):
         """

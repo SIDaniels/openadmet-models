@@ -126,6 +126,7 @@ class PickleableModelBase(ModelBase):
         with open(param_path) as f:
             model_params = json.load(f)
         instance = cls(**model_params)
+        instance.build()
         instance.load(serial_path)
         return instance
 
@@ -166,5 +167,6 @@ class TorchModelBase(ModelBase):
         with open(param_path) as f:
             model_params = json.load(f)
         instance = cls(**model_params)
+        instance.build()
         instance.load(serial_path)
         return instance
