@@ -23,6 +23,8 @@ def get_model_class(model_type):
 class ModelBase(BaseModel, ABC):
     _estimator: Any = None
 
+    _model_json_name: ClassVar[str] = "model.json"
+
     @property
     def estimator(self):
         return self._estimator
@@ -98,6 +100,8 @@ class PickleableModelBase(ModelBase):
 
     # classvar for pickleable model
     pickleable: ClassVar[bool] = True
+    
+    _model_save_name: ClassVar[str] = "model.pkl"
 
     def save(self, path: PathLike):
 
@@ -135,8 +139,13 @@ class PickleableModelBase(ModelBase):
             f.write(self.model_dump_json(indent=2))
         self.save(serial_path)
 
+    
+
 
 class TorchModelBase(ModelBase):
+
+    _model_save_name: ClassVar[str] = "model.pth"
+
     def save(self, path: PathLike):
         torch.save(self.estimator.state_dict(), path)
 
@@ -150,11 +159,12 @@ class TorchModelBase(ModelBase):
             f.write(self.model_dump_json(indent=2))
         self.save(serial_path)
 
+    @classmethod
     def deserialize(
-        self, param_path: PathLike = "model.json", serial_path: PathLike = "model.pth"
+        cls, param_path: PathLike = "model.json", serial_path: PathLike = "model.pth"
     ):
         with open(param_path) as f:
             model_params = json.load(f)
-        instance = self.from_params(**model_params)
+        instance = cls(**model_params)
         instance.load(serial_path)
         return instance

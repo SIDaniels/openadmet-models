@@ -8,14 +8,14 @@ from loguru import logger
 
 from pydantic import field_validator
 
-from openadmet.models.architecture.model_base import PickleableModelBase
+from openadmet.models.architecture.model_base import TorchModelBase
 from openadmet.models.architecture.model_base import models as model_registry
 
 _METRIC_TO_LOSS = {"mse": nn.metrics.MSE(), "mae": nn.metrics.MAE(), "rmse": nn.metrics.RMSE()}
 
 
 @model_registry.register("ChemPropSingleTaskRegressorModel")
-class ChemPropSingleTaskRegressorModel(PickleableModelBase):
+class ChemPropSingleTaskRegressorModel(TorchModelBase):
     """
     ChemProp regression model
     """
