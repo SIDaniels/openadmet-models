@@ -2,7 +2,7 @@
 import click
 import pandas as pd
 from rdkit.Chem import PandasTools
-from openadmet.models.anvil.workflow import ProcedureSpec
+from openadmet.models.anvil.workflow import ProcedureSpec, Metadata
 from pathlib import Path
 from loguru import logger
 
@@ -19,6 +19,11 @@ def load_anvil_model_and_metadata(model_dir):
     if not procedure_spec.exists():
         raise ValueError(f"Model path {model_dir} does not contain procedure.yaml")
 
+    metadata_spec = recipie_components_dir / "metadata.yaml"
+    if not metadata_spec.exists():
+        raise ValueError(f"Model path {model_dir} does not contain metadata.yaml")
+    # load the metadata
+    metadata = Metadata.from_yaml(metadata_spec)
 
     # load the procedure specification
     procedure_spec = ProcedureSpec.from_yaml(procedure_spec)
@@ -31,7 +36,7 @@ def load_anvil_model_and_metadata(model_dir):
         serial_path=model_dir / model._model_save_name,
     )
 
-    return loaded_model, feat
+    return loaded_model, feat, metadata
 
 
 
@@ -51,9 +56,10 @@ def load_anvil_model_and_metadata(model_dir):
 )
 @click.option(
     "--model-dir",
-    help="Path to the trained model directory as trained by `openadmet anvil`",
+    help="Path to a trained model directory as trained by `openadmet anvil`",
     required=True,
     type=click.Path(exists=True),
+    multiple=True,
 )
 @click.option(
     "--output-path",
@@ -68,12 +74,11 @@ def load_anvil_model_and_metadata(model_dir):
 )
 def predict(input_path, input_col,  model_dir, output_path, debug):
     """Predict using a trained model"""
-
     logger.info("Starting prediction")
-    logger.debug(f"Input path: {input_path}")
-    logger.debug(f"Model directory: {model_dir}")
-    logger.debug(f"Output path: {output_path}")
-    logger.debug(f"SMILES column: {input_col}")
+    logger.info(f"Input path: {input_path}")
+    logger.info(f"Model directories: {model_dir}")
+    logger.info(f"Output path: {output_path}")
+    logger.info(f"Input column: {input_col}")
     # load input data
     if input_path.endswith(".csv"):
         data = pd.read_csv(input_path)
@@ -87,19 +92,36 @@ def predict(input_path, input_col,  model_dir, output_path, debug):
     if "predictions" in data.columns:
         raise ValueError("Output file already contains a 'predictions' column")
 
-    # Load the model
-    model, feat = load_anvil_model_and_metadata(Path(model_dir))
+    # Load the models
+    for i, model_path in enumerate(model_dir):
+        logger.info(f"Loading model {i} from {model_path}")
+        # load the model and metadata
+        model, feat, metadata = load_anvil_model_and_metadata(Path(model_path))
 
-    logger.info(f"Model: {model}")
-    logger.info(f"Feature: {feat}")
-    X_feat, _ = feat.featurize(data[input_col])
+        logger.debug("Model metadata:")
+        logger.debug(metadata)
+        logger.debug(f"Model: {model.estimator}")
+        logger.debug(f"Feature: {feat}")
+        X_feat, _ = feat.featurize(data[input_col])
 
-    predictions = model.predict(X_feat)
+        predictions = model.predict(X_feat)
 
-    # todo metadata
 
-    # Save predictions to output file
-    data["predictions"] = predictions
+        # will need to change for multi-target models
+        predictions_tag = f"OADMET_PRED_{metadata.tag}"
+        if predictions_tag in data.columns:
+            raise ValueError(f"Output file already contains a '{predictions_tag}' column")
+
+        data[predictions_tag] = predictions
+
+    logger.info("Finished prediction")
+    logger.info(f"Predictions saved to {output_path}")
+    # remove ROMol column if it exists
+    if "ROMol" in data.columns:
+        data.drop(columns=["ROMol"], inplace=True)
+    # remove ID column if it exists
+    if "ID" in data.columns:
+        data.drop(columns=["ID"], inplace=True)
     data.to_csv(output_path, index=False)
 
 

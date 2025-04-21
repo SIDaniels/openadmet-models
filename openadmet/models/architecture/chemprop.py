@@ -3,6 +3,7 @@ from typing import ClassVar
 import numpy as np
 import torch
 from chemprop import models, nn
+from torch.nn import Identity
 from lightning import pytorch as pl
 from loguru import logger
 
@@ -30,6 +31,7 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
     ffn_num_layers: int = 1
     messages: str = "bond"
     aggregation: str = "norm"
+    normalized_targets: bool = True
 
 
     @field_validator("messages")
@@ -79,8 +81,11 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
         if not self.estimator:
             if scaler is not None:
                 output_transform = nn.UnscaleTransform.from_standard_scaler(scaler)
+            elif self.normalized_targets:
+                # expects the targets to be normalized, likely to be loaded from state dict
+                output_transform = nn.UnscaleTransform([1], [0])
             else:
-                output_transform = None
+                output_transform = Identity()
 
             metric_list = [_METRIC_TO_LOSS[metric] for metric in self.metric_list]
 
