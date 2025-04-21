@@ -6,4 +6,3 @@ def click_success(result):
         traceback.print_tb(result.exc_info[2])
         print(result.exc_info[0], result.exc_info[1])
     return result.exit_code == 0
-

@@ -1,4 +1,3 @@
-
 import click
 import pandas as pd
 from rdkit.Chem import PandasTools
@@ -29,7 +28,7 @@ def load_anvil_model_and_metadata(model_dir):
     procedure_spec = ProcedureSpec.from_yaml(procedure_spec)
     feat = procedure_spec.feat.to_class()
     model = procedure_spec.model.to_class()
-    
+
     # deserialize the model
     loaded_model = model.deserialize(
         param_path=model_dir / model._model_json_name,
@@ -87,7 +86,7 @@ def predict(input_path, input_col,  model_dir, output_path, debug):
 
     if input_col not in data.columns:
         raise ValueError(f"Column {input_col} not found in input data")
-    
+
 
     if "predictions" in data.columns:
         raise ValueError("Output file already contains a 'predictions' column")
@@ -123,5 +122,3 @@ def predict(input_path, input_col,  model_dir, output_path, debug):
     if "ID" in data.columns:
         data.drop(columns=["ID"], inplace=True)
     data.to_csv(output_path, index=False)
-
-

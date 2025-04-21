@@ -100,7 +100,7 @@ class PickleableModelBase(ModelBase):
 
     # classvar for pickleable model
     pickleable: ClassVar[bool] = True
-    
+
     _model_save_name: ClassVar[str] = "model.pkl"
 
     def save(self, path: PathLike):
@@ -140,7 +140,7 @@ class PickleableModelBase(ModelBase):
             f.write(self.model_dump_json(indent=2))
         self.save(serial_path)
 
-    
+
 
 
 class TorchModelBase(ModelBase):
