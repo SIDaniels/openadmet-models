@@ -27,7 +27,8 @@ class ChemPropFeaturizer(FeaturizerBase):
         """
         Featurize a list of SMILES strings
         """
-        if y:
+        if y is not None:
+            #fix broken for multi-task
             y = y.to_numpy().reshape(-1, 1)
             dataset = MoleculeDataset(
                 [MoleculeDatapoint.from_smi(smi, y_) for smi, y_ in zip(smiles, y)]
@@ -49,3 +50,6 @@ class ChemPropFeaturizer(FeaturizerBase):
             batch_size=self.batch_size,
         )
         return dataloader, scaler
+    
+
+

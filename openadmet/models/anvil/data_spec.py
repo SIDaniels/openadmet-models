@@ -17,7 +17,7 @@ class DataSpec(BaseModel):
     type: str
     resource: str
     cat_entry: Optional[str] = None
-    target_col: str
+    target_cols: list[str]
     input_col: str
     anvil_dir: Optional[str] = None
 
@@ -52,12 +52,13 @@ class DataSpec(BaseModel):
         # if CSV, parse using intake
         elif self.resource.endswith(".csv"):
             data = intake.open_csv(self.resource).read()
+        
 
         # now read the target columns and smiles column
-        target = data[self.target_col]
+        targets = data[self.target_cols]
         input = data[self.input_col]
 
-        return input, target
+        return input, targets
 
     @property
     def catalog(self):
