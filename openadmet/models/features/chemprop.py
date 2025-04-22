@@ -29,7 +29,7 @@ class ChemPropFeaturizer(FeaturizerBase):
         """
         if y is not None:
             #fix broken for multi-task
-            y = y.to_numpy().reshape(-1, 1)
+            y = y.to_numpy().reshape(-1, 1) if y.ndim == 1 else y.to_numpy()
             dataset = MoleculeDataset(
                 [MoleculeDatapoint.from_smi(smi, y_) for smi, y_ in zip(smiles, y)]
             )
