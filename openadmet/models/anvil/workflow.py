@@ -436,7 +436,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         logger.info("Model saved")
 
         logger.info("Predicting")
-        y_pred = self.model.predict(test_dataloader)
+        y_pred = self.model.predict(test_dataloader, accelerator=self.trainer.accelerator, devices=self.trainer.devices)
         logger.info("Predictions made")
 
         logger.info("Evaluating")
