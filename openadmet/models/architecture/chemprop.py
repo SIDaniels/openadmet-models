@@ -119,5 +119,10 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
                 logger=None, enable_progress_bar=False, accelerator=accelerator, devices=devices
             )
             preds = trainer.predict(self.estimator, X)
-        # concatenate the predictions which are in a list of tensors
-        return torch.cat(preds).numpy().ravel()
+        
+       # concatenate the predictions which are in a list of tensors
+        preds = torch.cat(preds, dim=0)
+        if preds.shape[1] == 1:
+            return preds.numpy().ravel()
+        else:
+            return preds.numpy()
