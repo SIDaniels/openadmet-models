@@ -50,6 +50,4 @@ class ChemPropFeaturizer(FeaturizerBase):
             batch_size=self.batch_size,
         )
         return dataloader, scaler
-    
-
 

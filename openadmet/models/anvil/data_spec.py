@@ -52,7 +52,7 @@ class DataSpec(BaseModel):
         # if CSV, parse using intake
         elif self.resource.endswith(".csv"):
             data = intake.open_csv(self.resource).read()
-        
+
 
         # now read the target columns and smiles column
         targets = data[self.target_cols]
