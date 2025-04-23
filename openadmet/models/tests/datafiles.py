@@ -35,3 +35,10 @@ combined_json = _data_ref / "cross_validation_metrics_combined.json"
 
 # ligand pose for reading and featurizing in MTENN
 ligand_pose = (_data_ref / "7kvh_A.pdb").as_posix()
+
+
+# stripped down anvil trained model directory for inference testing
+anvil_lgbm_trained_model_dir = (_data_ref / "cyp3a4_anvil_lgbm_model_dir").as_posix()
+
+# test data for prediction
+pred_test_data_csv = (_data_ref / "ligands.csv").as_posix()
