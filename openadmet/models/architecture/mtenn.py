@@ -87,4 +87,4 @@ class MTENNSchNetModel(TorchModelBase):
             trainer = pl.Trainer(
                 logger=None, enable_progress_bar=False, accelerator=accelerator, devices=devices)
             preds = trainer.predict(self.estimator, dataloader)
-        return torch.cat(preds, dim=0).numpy()        
+        return torch.cat(preds, dim=0).numpy()
