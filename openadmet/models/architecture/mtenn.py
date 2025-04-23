@@ -39,7 +39,7 @@ class MTENNLightningWrapper(pl.LightningModule):
     def predict_step(self, batch, batch_idx):
         data_batch, _  = batch
         preds = [self(data) for data in data_batch]
-        return torch.stack(preds)
+        return torch.cat(preds)
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.model.parameters(), lr=self.lr)
@@ -87,4 +87,4 @@ class MTENNSchNetModel(TorchModelBase):
             trainer = pl.Trainer(
                 logger=None, enable_progress_bar=False, accelerator=accelerator, devices=devices)
             preds = trainer.predict(self.estimator, dataloader)
-        return torch.cat(preds).numpy().ravel()
+        return torch.cat(preds, dim=0).numpy()        
