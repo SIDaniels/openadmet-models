@@ -350,7 +350,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
         # add target_cols for labeling in eval
         target_labels = self.data.target_cols
- 
+
         self.debug = debug
         output_dir = str(output_dir)
         if Path(output_dir).exists():
