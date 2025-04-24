@@ -33,7 +33,7 @@ class RegressionMetrics(EvalBase):
         "spearmanr": (nan_omit_spearmanr, True, "Spearman's $\\rho$"),
     }
 
-    def evaluate(self, y_true=None, y_pred=None, use_wandb=False, tag=None, **kwargs):
+    def evaluate(self, y_true=None, y_pred=None, use_wandb=False, tag=None, target_labels=None, **kwargs):
         """
         Evaluate the regression model
         """
@@ -62,7 +62,6 @@ class RegressionMetrics(EvalBase):
             metric_data["confidence_level"] = self.bootstrap_confidence_level
 
             self.data[f"{metric_tag}"] = metric_data
-
         if self.use_wandb:
             # make a table for the metrics
             table = wandb.Table(

@@ -348,6 +348,9 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         else:
             model_tag = self.metadata.tag
 
+        # add target_cols for labeling in eval
+        target_labels = self.data.target_cols
+ 
         self.debug = debug
         output_dir = str(output_dir)
         if Path(output_dir).exists():
@@ -453,6 +456,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                 y_train=train_dataloader,
                 use_wandb=use_wandb,
                 tag=model_tag,
+                target_labels=target_labels,
             )
             eval.report(write=True, output_dir=output_dir)
         logger.info("Evaluation done")
