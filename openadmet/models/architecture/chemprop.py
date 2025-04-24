@@ -119,4 +119,4 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
                 logger=None, enable_progress_bar=False, accelerator=accelerator, devices=devices
             )
             preds = trainer.predict(self.estimator, X)
-        return torch.cat(preds).numpy() 
+        return torch.cat(preds).numpy()
