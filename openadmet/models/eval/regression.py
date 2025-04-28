@@ -68,13 +68,13 @@ class RegressionMetrics(EvalBase):
                 )
 
                 self.data[t_label][metric_tag] = {
-                    "value": value, 
+                    "value": value,
                     "lower_ci": lower_ci,
                     "upper_ci": upper_ci,
                     "confidence_level": self.bootstrap_confidence_level
                     }
         print('MD', self.data)
-        
+
         if self.use_wandb:
             for t_label in target_labels:
                 # make a table for the metrics
@@ -147,11 +147,11 @@ class RegressionMetrics(EvalBase):
         stat_caption = ""
 
         for task_name in self.task_names:
-            if task_name == 'tag': 
+            if task_name == 'tag':
                 continue
 
             stat_caption += f'## {task_name} ##\n'
-            for metric in self.metric_names: 
+            for metric in self.metric_names:
                 value = self.data[task_name][metric]["value"]
                 lower_ci = self.data[task_name][metric]["lower_ci"]
                 upper_ci = self.data[task_name][metric]["upper_ci"]
@@ -194,7 +194,7 @@ class RegressionPlots(EvalBase):
         assert n_tasks == y_pred.shape[1]
         if target_labels is None:
             target_labels = [f'task_{i}' for i in range(n_tasks)]
- 
+
         self.plots = {
             "regplot": self.regplot,
         }
@@ -220,7 +220,7 @@ class RegressionPlots(EvalBase):
                 stat_caption=""
 
         # create the plots
-            for plot_tag, plot in self.plots.items(): 
+            for plot_tag, plot in self.plots.items():
                 self.plot_data[t_label] = plot(
                     t_true,
                     t_pred,
