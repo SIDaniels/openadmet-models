@@ -349,7 +349,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             model_tag = self.metadata.tag
 
         # add target_cols for labeling in eval
-        target_labels = self.data.target_cols
+        target_labels = self.data_spec.target_cols
 
         self.debug = debug
         output_dir = str(output_dir)
@@ -445,7 +445,8 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         logger.info("Evaluating")
 
         use_wandb = self.trainer.use_wandb
-
+        print(self.evals)
+        breakpoint()
         for eval in self.evals:
             # here all the data is passed to the evaluator, but some evaluators may only need a subset
             eval.evaluate(
