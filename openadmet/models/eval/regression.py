@@ -40,45 +40,57 @@ class RegressionMetrics(EvalBase):
         if y_true is None or y_pred is None:
             raise ValueError("Must provide y_true and y_pred")
 
+        n_tasks = y_true.shape[1]
+        assert n_tasks == y_pred.shape[1]
+        if target_labels is None:
+            target_labels = [f'task_{i}' for i in range(n_tasks)]
+
         self.data = {"tag": tag}
 
         if use_wandb:
             self.use_wandb = use_wandb
 
-        for metric_tag, (metric, is_scipy, _) in self._metrics.items():
-            value, lower_ci, upper_ci = self.stat_and_bootstrap(
-                metric_tag,
-                y_pred,
-                y_true,
-                metric,
-                is_scipy_statistic=is_scipy,
-                confidence_level=self.bootstrap_confidence_level,
-            )
+        for task_id in range(n_tasks):
+            t_true = y_true[:, task_id]
+            t_pred = y_pred[:, task_id]
+            t_label = target_labels[task_id]
 
-            metric_data = {}
-            metric_data["value"] = value
-            metric_data["lower_ci"] = lower_ci
-            metric_data["upper_ci"] = upper_ci
-            metric_data["confidence_level"] = self.bootstrap_confidence_level
+            self.data[t_label] = {}
 
-            self.data[f"{metric_tag}"] = metric_data
-        if self.use_wandb:
-            # make a table for the metrics
-            table = wandb.Table(
-                columns=["Metric", "Value", "Lower CI", "Upper CI", "Confidence Level"]
-            )
-            for metric in self.metric_names:
-                table.add_data(
+            for metric_tag, (metric, is_scipy, _) in self._metrics.items():
+                value, lower_ci, upper_ci = self.stat_and_bootstrap(
+                    metric_tag,
+                    t_pred,
+                    t_true,
                     metric,
-                    self.data[metric]["value"],
-                    self.data[metric]["lower_ci"],
-                    self.data[metric]["upper_ci"],
-                    self.data[metric]["confidence_level"],
+                    is_scipy_statistic=is_scipy,
+                    confidence_level=self.bootstrap_confidence_level,
                 )
-            wandb.log({"metrics": table})
 
-            for metric in self.metric_names:
-                wandb.log({metric: self.data[metric]["value"]})
+                self.data[t_label][metric_tag] = {
+                    "value": value, 
+                    "lower_ci": lower_ci,
+                    "upper_ci": upper_ci,
+                    "confidence_level": self.bootstrap_confidence_level
+                    }
+        print('MD', self.data)
+        
+        if self.use_wandb:
+            for t_label in target_labels:
+                # make a table for the metrics
+                table = wandb.Table(
+                    columns=["Metric", "Value", "Lower CI", "Upper CI", "Confidence Level"]
+                )
+                for metric_tag in self.metric_names:
+                    metric = self.data[t_label][metric_tag]
+                    table.add_data(
+                        metric_tag,
+                        metric["value"],
+                        metric["lower_ci"],
+                        metric["upper_ci"],
+                        metric["confidence_level"],
+                    )
+            wandb.log({f"metrics_{t_label}": table})
 
         self._evaluated = True
         return self.data
@@ -88,12 +100,22 @@ class RegressionMetrics(EvalBase):
         """
         Return the metric names
         """
+        print('MN', list(self._metrics.keys()))
         return list(self._metrics.keys())
+
+    @property
+    def task_names(self):
+        """
+        Return the task names
+        """
+        print('TN', list(self.data.keys()))
+        return list(self.data.keys())
 
     def report(self, write=False, output_dir=None):
         """
         Report the evaluation
         """
+        print('w', write)
         if write:
             self.write_report(output_dir)
         return self.data
@@ -106,6 +128,7 @@ class RegressionMetrics(EvalBase):
         json_path = output_dir / "regression_metrics.json"
         with open(json_path, "w") as f:
             json.dump(self.data, f, indent=2)
+        print('dump complete', self.use_wandb)
 
         # also log the json to wandb
         if self.use_wandb:
@@ -122,13 +145,20 @@ class RegressionMetrics(EvalBase):
         if not self._evaluated:
             raise ValueError("Must evaluate before making a caption")
         stat_caption = ""
-        for metric in self.metric_names:
-            value = self.data[metric]["value"]
-            lower_ci = self.data[metric]["lower_ci"]
-            upper_ci = self.data[metric]["upper_ci"]
-            confidence_level = self.data[metric]["confidence_level"]
-            stat_caption += f"{self._metrics[metric][2]}: {value:.2f}$_{{{lower_ci:.2f}}}^{{{upper_ci:.2f}}}$\n"
-        stat_caption += f"Confidence level: {confidence_level}"
+
+        for task_name in self.task_names:
+            if task_name == 'tag': 
+                continue
+
+            stat_caption += f'## {task_name} ##\n'
+            for metric in self.metric_names: 
+                value = self.data[task_name][metric]["value"]
+                lower_ci = self.data[task_name][metric]["lower_ci"]
+                upper_ci = self.data[task_name][metric]["upper_ci"]
+                confidence_level = self.data[task_name][metric]["confidence_level"]
+                stat_caption += f"{self._metrics[metric][2]}: {value:.2f}$_{{{lower_ci:.2f}}}^{{{upper_ci:.2f}}}$\n"
+            stat_caption += '\n'
+        stat_caption += f"Confidence level: {confidence_level} \n"
         return stat_caption
 
 
@@ -149,9 +179,10 @@ class RegressionPlots(EvalBase):
     use_wandb: bool = Field(False, description="Whether to use wandb")
     dpi: int = Field(300, description="DPI for the plot")
 
-    def evaluate(self, y_true=None, y_pred=None, use_wandb=False, **kwargs):
+    def evaluate(self, y_true=None, y_pred=None, use_wandb=False, target_labels=None, metrics_data=None,  **kwargs):
         """
         Evaluate the regression model
+        metrics_data allows you to input already computed data from RegressionMetrics module, if it exists, as not to recompute
         """
         if use_wandb:
             self.use_wandb = use_wandb
@@ -159,30 +190,48 @@ class RegressionPlots(EvalBase):
         if y_true is None or y_pred is None:
             raise ValueError("Must provide y_true and y_pred")
 
+        n_tasks = y_true.shape[1]
+        assert n_tasks == y_pred.shape[1]
+        if target_labels is None:
+            target_labels = [f'task_{i}' for i in range(n_tasks)]
+ 
         self.plots = {
             "regplot": self.regplot,
         }
 
         self.plot_data = {}
 
-        if self.do_stats:
-            rm = RegressionMetrics()
-            rm.evaluate(y_true, y_pred)
-            stat_caption = rm.make_stat_caption()
+        for task_id in range(n_tasks):
+            t_true = y_true[:, task_id]
+            t_pred = y_pred[:, task_id]
+            t_label = target_labels[task_id]
+
+            if self.do_stats:
+                print(metrics_data)
+                if metrics_data is None:
+                    rm = RegressionMetrics()
+                    rm.evaluate(t_true.reshape(-1, 1), t_pred.reshape(-1, 1), target_labels=[t_label])
+                    stat_caption = rm.make_stat_caption()
+                else:
+                    task_metrics = metrics_data[t_label]
+                    stat_caption = self.make_stat_caption_from_data(task_metrics)
+                    print(stat_caption)
+            else:
+                stat_caption=""
 
         # create the plots
-        for plot_tag, plot in self.plots.items():
-            self.plot_data[plot_tag] = plot(
-                y_true,
-                y_pred,
-                xlabel=self.axes_labels[0],
-                ylabel=self.axes_labels[1],
-                title=self.title,
-                stat_caption=stat_caption,
-                pXC50=self.pXC50,
-                min_val=self.min_val,
-                max_val=self.max_val,
-            )
+            for plot_tag, plot in self.plots.items(): 
+                self.plot_data[t_label] = plot(
+                    t_true,
+                    t_pred,
+                    xlabel=self.axes_labels[0],
+                    ylabel=self.axes_labels[1],
+                    title=f'{self.title}: {t_label}',
+                    stat_caption=stat_caption,
+                    pXC50=self.pXC50,
+                    min_val=self.min_val,
+                    max_val=self.max_val,
+                )
 
     @staticmethod
     def regplot(
@@ -245,6 +294,21 @@ class RegressionPlots(EvalBase):
         ax.text(0.05, 0.7, stat_caption, transform=ax.transAxes, fontsize=6)
 
         return fig
+
+    def make_stat_caption_from_data(self, data):
+        """
+        Make a caption from the metrics data
+        """
+        metric_names = list(data.keys())
+        stat_caption = ""
+        for metric in metric_names:
+            value = data[metric]["value"]
+            lower_ci = data[metric]["lower_ci"]
+            upper_ci = data[metric]["upper_ci"]
+            confidence_level = data[metric]["confidence_level"]
+            stat_caption += f"{metric}: {value:.2f}$_{{{lower_ci:.2f}}}^{{{upper_ci:.2f}}}$\n"
+        stat_caption += f"Confidence level: {confidence_level}"
+        return stat_caption
 
     def report(self, write=False, output_dir=None):
         """

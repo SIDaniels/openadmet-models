@@ -445,21 +445,53 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         logger.info("Evaluating")
 
         use_wandb = self.trainer.use_wandb
-        print(self.evals)
-        breakpoint()
+
+        metrics_data=None
         for eval in self.evals:
             # here all the data is passed to the evaluator, but some evaluators may only need a subset
-            eval.evaluate(
-                y_true=y_test.values,  # Pass as array instead of series
-                y_pred=y_pred,
-                model=self.model,
-                X_train=train_dataloader,
-                y_train=train_dataloader,
-                use_wandb=use_wandb,
-                tag=model_tag,
-                target_labels=target_labels,
-            )
-            eval.report(write=True, output_dir=output_dir)
+            if isinstance(eval, RegressionMetrics):
+            #Run regression metrics first if called to compute data
+                eval.evaluate(
+                    y_true=y_test.values,  # Pass as array instead of series
+                    y_pred=y_pred,
+                    model=self.model,
+                    X_train=train_dataloader,
+                    y_train=train_dataloader,
+                    use_wandb=use_wandb,
+                    tag=model_tag,
+                    target_labels=target_labels,
+                )
+                eval.report(write=True, output_dir=output_dir)
+                metrics_data = eval.data
+
+            elif isinstance(eval, RegressionPlots):
+            #Run Plots with precomputed data
+                eval.evaluate(
+                    y_true=y_test.values,  # Pass as array instead of series
+                    y_pred=y_pred,
+                    model=self.model,
+                    X_train=train_dataloader,
+                    y_train=train_dataloader,
+                    use_wandb=use_wandb,
+                    tag=model_tag,
+                    target_labels=target_labels,
+                    metrics_data = metrics_data
+                )
+                eval.report(write=True, output_dir=output_dir)
+
+            else:
+            #In place for other eval types
+                eval.evaluate(
+                    y_true=y_test.values,  # Pass as array instead of series
+                    y_pred=y_pred,
+                    model=self.model,
+                    X_train=train_dataloader,
+                    y_train=train_dataloader,
+                    use_wandb=use_wandb,
+                    tag=model_tag,
+                    target_labels=target_labels,
+                )
+                eval.report(write=True, output_dir=output_dir)
         logger.info("Evaluation done")
 
 
