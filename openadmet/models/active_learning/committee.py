@@ -14,8 +14,6 @@ from openadmet.models.architecture.model_base import PickleableModelBase
 _QUERY_STRATEGIES = {
     "max-uncertainty-reduction": max_uncertainty_reduction_query,
     "exploitation": exploitation_query,
-    # "max-expected-improvement": expected_improvement_query,  # Need to incorporate `best_y`
-    # "max-probability-improvement": probability_improvement_query,  # Need to incorporate `best_y`
     "upper-confidence-bound": upper_confidence_bound_query,  # `beta` should be configurable
     "random": random_query,
 }
