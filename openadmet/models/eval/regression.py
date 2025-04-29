@@ -9,7 +9,7 @@ from pydantic import Field
 from scipy.stats import kendalltau, spearmanr
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-from openadmet.models.eval.eval_base import EvalBase, evaluators
+from openadmet.models.eval.eval_base import EvalBase, evaluators, mask_nans
 
 # create partial functions for the scipy stats
 nan_omit_ktau = partial(kendalltau, nan_policy="omit")
@@ -53,6 +53,8 @@ class RegressionMetrics(EvalBase):
         for task_id in range(n_tasks):
             t_true = y_true[:, task_id]
             t_pred = y_pred[:, task_id]
+            #remove Nan values
+            t_true, t_pred = mask_nans(t_true, t_pred)
             t_label = target_labels[task_id]
 
             self.data[t_label] = {}
@@ -204,6 +206,8 @@ class RegressionPlots(EvalBase):
         for task_id in range(n_tasks):
             t_true = y_true[:, task_id]
             t_pred = y_pred[:, task_id]
+            #remove Nan values
+            t_true, t_pred = mask_nans(t_true, t_pred)
             t_label = target_labels[task_id]
 
             if self.do_stats:
