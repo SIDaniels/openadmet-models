@@ -23,18 +23,25 @@ class ChemPropFeaturizer(FeaturizerBase):
         Prepare the featurizer
         """
 
-    def featurize(self, smiles: Iterable[str], y: Iterable[Any]) -> DataLoader:
+    def featurize(self, smiles: Iterable[str], y: Iterable[Any]=None) -> DataLoader:
         """
         Featurize a list of SMILES strings
         """
-        y = y.to_numpy().reshape(-1, 1)
-        dataset = MoleculeDataset(
-            [MoleculeDatapoint.from_smi(smi, y_) for smi, y_ in zip(smiles, y)]
-        )
-        if self.normalize_targets:
-            scaler = dataset.normalize_targets()
+        if y:
+            y = y.to_numpy().reshape(-1, 1)
+            dataset = MoleculeDataset(
+                [MoleculeDatapoint.from_smi(smi, y_) for smi, y_ in zip(smiles, y)]
+            )
+            if self.normalize_targets:
+                scaler = dataset.normalize_targets()
+            else:
+                scaler = None
         else:
+            dataset = MoleculeDataset(
+                [MoleculeDatapoint.from_smi(smi) for smi in smiles]
+            )
             scaler = None
+
         dataloader = build_dataloader(
             dataset,
             num_workers=self.n_jobs,

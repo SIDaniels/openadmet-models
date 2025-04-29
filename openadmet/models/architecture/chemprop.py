@@ -3,19 +3,20 @@ from typing import ClassVar
 import numpy as np
 import torch
 from chemprop import models, nn
+from torch.nn import Identity
 from lightning import pytorch as pl
 from loguru import logger
 
 from pydantic import field_validator
 
-from openadmet.models.architecture.model_base import PickleableModelBase
+from openadmet.models.architecture.model_base import TorchModelBase
 from openadmet.models.architecture.model_base import models as model_registry
 
 _METRIC_TO_LOSS = {"mse": nn.metrics.MSE(), "mae": nn.metrics.MAE(), "rmse": nn.metrics.RMSE()}
 
 
 @model_registry.register("ChemPropSingleTaskRegressorModel")
-class ChemPropSingleTaskRegressorModel(PickleableModelBase):
+class ChemPropSingleTaskRegressorModel(TorchModelBase):
     """
     ChemProp regression model
     """
@@ -30,6 +31,7 @@ class ChemPropSingleTaskRegressorModel(PickleableModelBase):
     ffn_num_layers: int = 1
     messages: str = "bond"
     aggregation: str = "norm"
+    normalized_targets: bool = True
 
 
     @field_validator("messages")
@@ -43,7 +45,7 @@ class ChemPropSingleTaskRegressorModel(PickleableModelBase):
         return value
 
 
-    @field_validator("model_params")
+    @field_validator("aggregation")
     @classmethod
     def validate_aggregation(cls, value):
         """
@@ -79,8 +81,11 @@ class ChemPropSingleTaskRegressorModel(PickleableModelBase):
         if not self.estimator:
             if scaler is not None:
                 output_transform = nn.UnscaleTransform.from_standard_scaler(scaler)
+            elif self.normalized_targets:
+                # expects the targets to be normalized, likely to be loaded from state dict
+                output_transform = nn.UnscaleTransform([1], [0])
             else:
-                output_transform = None
+                output_transform = Identity()
 
             metric_list = [_METRIC_TO_LOSS[metric] for metric in self.metric_list]
 
@@ -102,7 +107,7 @@ class ChemPropSingleTaskRegressorModel(PickleableModelBase):
         else:
             logger.warning("Model already exists, skipping build")
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(self, X: np.ndarray, accelerator="gpu", devices=1) -> np.ndarray:
         """
         Predict using the model
         """
@@ -111,7 +116,7 @@ class ChemPropSingleTaskRegressorModel(PickleableModelBase):
 
         with torch.inference_mode():
             trainer = pl.Trainer(
-                logger=None, enable_progress_bar=False, accelerator="auto", devices=1
+                logger=None, enable_progress_bar=False, accelerator=accelerator, devices=devices
             )
             preds = trainer.predict(self.estimator, X)
         # concatenate the predictions which are in a list of tensors
