@@ -75,7 +75,6 @@ class RegressionMetrics(EvalBase):
                     "upper_ci": upper_ci,
                     "confidence_level": self.bootstrap_confidence_level
                     }
-        print('MD', self.data)
 
         if self.use_wandb:
             for t_label in target_labels:
@@ -102,7 +101,6 @@ class RegressionMetrics(EvalBase):
         """
         Return the metric names
         """
-        print('MN', list(self._metrics.keys()))
         return list(self._metrics.keys())
 
     @property
@@ -110,14 +108,12 @@ class RegressionMetrics(EvalBase):
         """
         Return the task names
         """
-        print('TN', list(self.data.keys()))
         return list(self.data.keys())
 
     def report(self, write=False, output_dir=None):
         """
         Report the evaluation
         """
-        print('w', write)
         if write:
             self.write_report(output_dir)
         return self.data
@@ -130,7 +126,6 @@ class RegressionMetrics(EvalBase):
         json_path = output_dir / "regression_metrics.json"
         with open(json_path, "w") as f:
             json.dump(self.data, f, indent=2)
-        print('dump complete', self.use_wandb)
 
         # also log the json to wandb
         if self.use_wandb:
@@ -211,7 +206,6 @@ class RegressionPlots(EvalBase):
             t_label = target_labels[task_id]
 
             if self.do_stats:
-                print(metrics_data)
                 if metrics_data is None:
                     rm = RegressionMetrics()
                     rm.evaluate(t_true.reshape(-1, 1), t_pred.reshape(-1, 1), target_labels=[t_label])
@@ -219,7 +213,6 @@ class RegressionPlots(EvalBase):
                 else:
                     task_metrics = metrics_data[t_label]
                     stat_caption = self.make_stat_caption_from_data(task_metrics)
-                    print(stat_caption)
             else:
                 stat_caption=""
 
