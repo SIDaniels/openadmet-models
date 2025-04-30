@@ -91,7 +91,7 @@ class RegressionMetrics(EvalBase):
                         metric["upper_ci"],
                         metric["confidence_level"],
                     )
-            wandb.log({f"metrics_{t_label}": table})
+                wandb.log({f"metrics_{t_label}": table})
 
         self._evaluated = True
         return self.data
