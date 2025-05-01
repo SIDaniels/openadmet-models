@@ -3,6 +3,7 @@ from functools import partial
 
 import numpy as np
 import seaborn as sns
+import pandas as pd
 import wandb
 from matplotlib import pyplot as plt
 from pydantic import Field
@@ -49,6 +50,9 @@ class RegressionMetrics(EvalBase):
 
         if use_wandb:
             self.use_wandb = use_wandb
+
+        if isinstance(y_true, pd.DataFrame):
+            y_true = y_true.to_numpy()
 
         for task_id in range(n_tasks):
             t_true = y_true[:, task_id]
@@ -176,10 +180,9 @@ class RegressionPlots(EvalBase):
     use_wandb: bool = Field(False, description="Whether to use wandb")
     dpi: int = Field(300, description="DPI for the plot")
 
-    def evaluate(self, y_true=None, y_pred=None, use_wandb=False, target_labels=None, metrics_data=None,  **kwargs):
+    def evaluate(self, y_true=None, y_pred=None, use_wandb=False, target_labels=None, **kwargs):
         """
         Evaluate the regression model
-        metrics_data allows you to input already computed data from RegressionMetrics module, if it exists, as not to recompute
         """
         if use_wandb:
             self.use_wandb = use_wandb
@@ -198,6 +201,9 @@ class RegressionPlots(EvalBase):
 
         self.plot_data = {}
 
+        if isinstance(y_true, pd.DataFrame):
+            y_true = y_true.to_numpy()
+
         for task_id in range(n_tasks):
             t_true = y_true[:, task_id]
             t_pred = y_pred[:, task_id]
@@ -206,13 +212,9 @@ class RegressionPlots(EvalBase):
             t_label = target_labels[task_id]
 
             if self.do_stats:
-                if metrics_data is None:
-                    rm = RegressionMetrics()
-                    rm.evaluate(t_true.reshape(-1, 1), t_pred.reshape(-1, 1), target_labels=[t_label])
-                    stat_caption = rm.make_stat_caption()
-                else:
-                    task_metrics = metrics_data[t_label]
-                    stat_caption = self.make_stat_caption_from_data(task_metrics)
+                rm = RegressionMetrics()
+                rm.evaluate(t_true.reshape(-1, 1), t_pred.reshape(-1, 1), target_labels=[t_label])
+                stat_caption = rm.make_stat_caption()
             else:
                 stat_caption=""
 
@@ -294,6 +296,7 @@ class RegressionPlots(EvalBase):
 
     def make_stat_caption_from_data(self, data):
         """
+        Can be used later for mulittask
         Make a caption from the metrics data
         """
         metric_names = list(data.keys())
