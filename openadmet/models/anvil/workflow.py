@@ -451,12 +451,12 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             eval.evaluate(
                 y_true=y_test.values,  # Pass as array instead of series
                 y_pred=y_pred,
-                model=self.model, 
+                model=self.model,
                 X_train=train_dataloader,
                 y_train=train_dataloader,
                 use_wandb=use_wandb,
                 tag=model_tag,
-                target_labels=target_labels 
+                target_labels=target_labels
                )
             eval.report(write=True, output_dir=output_dir)
         logger.info("Evaluation done")
