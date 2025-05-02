@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-
+import glob
 from openadmet.models.anvil.workflow import (
     AnvilSpecification,
 )
@@ -51,7 +51,7 @@ def test_anvil_workflow_run(tmp_path, anvil_full_recipie):
     anvil_workflow.run(output_dir=tmp_path / "tst")
     assert Path(tmp_path / "tst" / "model.json").exists()
     assert Path(tmp_path / "tst" / "regression_metrics.json").exists()
-    assert Path(tmp_path / "tst" / "regplot.png").exists()
+    assert any((tmp_path / "tst").glob("regplot*.png"))
 
 
 def test_anvil_multiyaml(tmp_path):
