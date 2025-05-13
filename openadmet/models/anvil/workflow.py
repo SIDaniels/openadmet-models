@@ -275,7 +275,7 @@ class AnvilWorkflow(AnvilWorkflowBase):
             logger.info("No transform specified, skipping")
 
         logger.info("Splitting data")
-        X_train, X_test, y_train, y_test = self.split.split(X, y)
+        X_train, _, X_test, y_train, _, y_test = self.split.split(X, y)
 
         X_train.to_csv(data_dir / "X_train.csv", index=False)
         X_test.to_csv(data_dir / "X_test.csv", index=False)
@@ -395,11 +395,14 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             logger.info("No transform specified, skipping")
 
         logger.info("Splitting data")
-        X_train, X_test, y_train, y_test = self.split.split(X, y)
+        X_train, X_val, X_test, y_train, y_val, y_test = self.split.split(X, y)
 
+        # Save splits to CSV outputs
         X_train.to_csv(data_dir / "X_train.csv", index=False)
+        X_val.to_csv(data_dir / "X_val.csv", index=False)
         X_test.to_csv(data_dir / "X_test.csv", index=False)
         y_train.to_csv(data_dir / "y_train.csv", index=False)
+        y_val.to_csv(data_dir / "y_val.csv", index=False)
         y_test.to_csv(data_dir / "y_test.csv", index=False)
 
         logger.info("Data split")
@@ -408,7 +411,10 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         train_dataloader, train_scaler = self.feat.featurize(X_train, y_train)
         torch.save(train_dataloader, output_dir / "train_dataloader.pth")
 
-        test_dataloader, test_scaler = self.feat.featurize(X_test, y_test)
+        val_dataloader, _ = self.feat.featurize(X_val, y_val)
+        torch.save(val_dataloader, output_dir / "val_dataloader.pth")
+
+        test_dataloader, _ = self.feat.featurize(X_test, y_test)
         torch.save(test_dataloader, output_dir / "test_dataloader.pth")
         logger.info("Data featurized")
 
@@ -428,10 +434,8 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         self.trainer.prepare()
         logger.info("Trainer prepared")
 
-
-
         logger.info("Training model")
-        self.model = self.trainer.train(train_dataloader)
+        self.model = self.trainer.train(train_dataloader, val_dataloader)
         logger.info("Model trained")
 
         logger.info("Saving model")
@@ -439,7 +443,11 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         logger.info("Model saved")
 
         logger.info("Predicting")
-        y_pred = self.model.predict(test_dataloader, accelerator=self.trainer.accelerator, devices=self.trainer.devices)
+        y_pred = self.model.predict(
+            test_dataloader,
+            accelerator=self.trainer.accelerator,
+            devices=self.trainer.devices,
+        )
         logger.info("Predictions made")
 
         logger.info("Evaluating")
@@ -456,8 +464,8 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                 y_train=train_dataloader,
                 use_wandb=use_wandb,
                 tag=model_tag,
-                target_labels=target_labels
-               )
+                target_labels=target_labels,
+            )
             eval.report(write=True, output_dir=output_dir)
         logger.info("Evaluation done")
 

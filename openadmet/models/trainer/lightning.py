@@ -31,22 +31,31 @@ class LightningTrainer(TrainerBase):
         Build the model trainer
         """
 
+        # Configure checkpoint callbacks
         checkpointing = ModelCheckpoint(
             self.output_dir
             / "checkpoints",  # Directory where model checkpoints will be saved
             "best-{epoch}-{train_loss:.4f}",  # Filename format for checkpoints, including epoch and validation loss
-            "train_loss",  # Metric used to select the best checkpoint (based on validation loss)
+            "val_loss",  # Metric used to select the best checkpoint (based on validation loss)
             mode="min",  # Save the checkpoint with the lowest validation loss (minimization objective)
             save_last=True,  # Always save the most recent checkpoint, even if it's not the best
             save_top_k=1,  # Keep the top 1 checkpoints
         )
+
+        # Initialize logging container
         self._logger = []
+
+        # Append wandb longer if requested
         if self.use_wandb:
             self.wandb_logger = WandbLogger(
                 log_model=True, save_dir=self.output_dir, project=self.wandb_project
             )
             self._logger.append(self.wandb_logger)
+
+        # Append CSV logger
         self._logger.append(CSVLogger(self.output_dir / "logs", name="model"))
+
+        # Initialize the PyTorch Lightning trainer
         self._trainer = pl.Trainer(
             logger=self._logger,
             enable_progress_bar=True,
@@ -56,10 +65,15 @@ class LightningTrainer(TrainerBase):
             callbacks=[checkpointing],  # Use the configured checkpoint callback
         )
 
-    def train(self, train_dataloader):
+    def train(self, train_dataloader, val_dataloader):
         """
         Train the model
         """
+
+        # Indicate that the model is being trained
         logger.info(f"Training model {self.model._estimator}")
-        self._trainer.fit(self.model._estimator, train_dataloader)
+
+        # Fit model
+        self._trainer.fit(self.model._estimator, train_dataloader, val_dataloader)
+
         return self.model
