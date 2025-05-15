@@ -20,9 +20,9 @@ class SplitterBase(BaseModel, ABC):
     Base class for splitters, allows for arbitrary splitting of data
     """
 
-    test_size: float = 0.50
-    val_size: float = 0.25
-    train_size: float = 0.25
+    train_size: float = 0.8
+    val_size: float = 0.0
+    test_size: float = 0.2
     random_state: int = 42
 
     @model_validator(mode="after")
