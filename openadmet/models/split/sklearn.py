@@ -18,8 +18,8 @@ class ShuffleSplitter(SplitterBase):
         X_train, X_val_test, y_train, y_val_test = train_test_split(
             X,
             y,
-            train_size=self.train_size,
-            test_size=self.test_size + self.val_size,
+            train_size=None,
+            test_size=int((self.test_size + self.val_size) * X.shape[0]),
             random_state=self.random_state,
         )
 
@@ -35,7 +35,8 @@ class ShuffleSplitter(SplitterBase):
         X_val, X_test, y_val, y_test = train_test_split(
             X_val_test,
             y_val_test,
-            test_size=self.test_size / (self.test_size + self.val_size),
+            train_size=None,
+            test_size=int(self.test_size * X.shape[0]),
             random_state=self.random_state,
         )
 

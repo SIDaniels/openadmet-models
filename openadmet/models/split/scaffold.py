@@ -17,7 +17,8 @@ class ScaffoldSplitter(SplitterBase):
         splitter = ScaffoldSplit(
             smiles=X,
             n_jobs=-1,
-            test_size=self.val_size + self.test_size,
+            train_size=None,
+            test_size=int((self.test_size + self.val_size) * X.shape[0]),
             random_state=self.random_state,
         )
         train_idx, val_test_idx = next(splitter.split(X=X))
@@ -48,7 +49,8 @@ class ScaffoldSplitter(SplitterBase):
         val_test_splitter = ScaffoldSplit(
             smiles=X[val_test_idx],
             n_jobs=-1,
-            test_size=self.test_size / (self.val_size + self.test_size),
+            train_size=None,
+            test_size=int(self.test_size * X.shape[0]),
             random_state=self.random_state,
         )
         val_idx, test_idx = next(val_test_splitter.split(X=X[val_test_idx]))
@@ -77,7 +79,8 @@ class PerimeterSplitter(SplitterBase):
         # First split into train and val+test
         splitter = PerimeterSplit(
             n_jobs=-1,
-            test_size=self.val_size + self.test_size,
+            train_size=None,
+            test_size=int((self.test_size + self.val_size) * X.shape[0]),
             random_state=self.random_state,
         )
         train_idx, val_test_idx = next(splitter.split(X=X))
@@ -107,7 +110,8 @@ class PerimeterSplitter(SplitterBase):
         # If both test and validation sets are requested, split the remaining data
         val_test_splitter = PerimeterSplit(
             n_jobs=-1,
-            test_size=self.test_size / (self.val_size + self.test_size),
+            train_size=None,
+            test_size=int(self.test_size * X.shape[0]),
             random_state=self.random_state,
         )
         val_idx, test_idx = next(val_test_splitter.split(X=X[val_test_idx]))
@@ -136,7 +140,8 @@ class MaxDissimilaritySplitter(SplitterBase):
         # First split into train and val+test
         splitter = MaxDissimilaritySplit(
             n_jobs=-1,
-            test_size=self.val_size + self.test_size,
+            train_size=None,
+            test_size=int((self.test_size + self.val_size) * X.shape[0]),
             random_state=self.random_state,
         )
         train_idx, val_test_idx = next(splitter.split(X=X))
@@ -166,7 +171,8 @@ class MaxDissimilaritySplitter(SplitterBase):
         # If both test and validation sets are requested, split the remaining data
         val_test_splitter = MaxDissimilaritySplit(
             n_jobs=-1,
-            test_size=self.test_size / (self.val_size + self.test_size),
+            train_size=None,
+            test_size=int(self.test_size * X.shape[0]),
             random_state=self.random_state,
         )
         val_idx, test_idx = next(val_test_splitter.split(X=X[val_test_idx]))
