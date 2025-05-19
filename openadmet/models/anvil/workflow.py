@@ -568,13 +568,13 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
         # Featurize splits
         logger.info("Featurizing data")
-        train_dataloader, train_scaler = self.feat.featurize(X_train, y_train)
+        train_dataloader, train_scaler, train_dataset = self.feat.featurize(X_train, y_train)
         torch.save(train_dataloader, output_dir / "train_dataloader.pth")
 
-        val_dataloader, _ = self.feat.featurize(X_val, y_val)
+        val_dataloader, _, val_dataset = self.feat.featurize(X_val, y_val)
         torch.save(val_dataloader, output_dir / "val_dataloader.pth")
 
-        test_dataloader, _ = self.feat.featurize(X_test, y_test)
+        test_dataloader, _, test_dataset = self.feat.featurize(X_test, y_test)
         torch.save(test_dataloader, output_dir / "test_dataloader.pth")
         logger.info("Data featurized")
 
@@ -631,9 +631,15 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                 model=self.model,
                 X_train=train_dataloader,
                 y_train=train_dataloader,
+                train_dataset=train_dataset,
+                val_dataset=val_dataset,
+                test_dataset=test_dataset,
+                featurizer=self.feat,
+                trainer=self.trainer,
                 use_wandb=use_wandb,
                 tag=model_tag,
                 target_labels=target_labels,
+            
             )
 
             # Write evaluation report

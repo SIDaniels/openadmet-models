@@ -35,7 +35,7 @@ class LightningTrainer(TrainerBase):
         checkpointing = ModelCheckpoint(
             self.output_dir
             / "checkpoints",  # Directory where model checkpoints will be saved
-            "best-{epoch}-{train_loss:.4f}",  # Filename format for checkpoints, including epoch and validation loss
+            "best-{epoch}-{val_loss:.4f}",  # Filename format for checkpoints, including epoch and validation loss
             "val_loss",  # Metric used to select the best checkpoint (based on validation loss)
             mode="min",  # Save the checkpoint with the lowest validation loss (minimization objective)
             save_last=True,  # Always save the most recent checkpoint, even if it's not the best
@@ -77,3 +77,5 @@ class LightningTrainer(TrainerBase):
         self._trainer.fit(self.model._estimator, train_dataloader, val_dataloader)
 
         return self.model
+    
+

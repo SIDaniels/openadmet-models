@@ -1,11 +1,75 @@
 from collections.abc import Iterable
 from typing import Any
 
-from chemprop.data import MoleculeDatapoint, MoleculeDataset, build_dataloader
+from chemprop.data import MoleculeDatapoint, MoleculeDataset, ReactionDataset, MulticomponentDataset
+from chemprop.data.samplers import ClassBalanceSampler, SeededSampler
+from chemprop.data.collate import collate_batch, collate_multicomponent
+import logging
 from torch.utils.data import DataLoader
 
 from openadmet.models.features.feature_base import FeaturizerBase, featurizers
 
+
+# we vendor this from chemprop so that we can pass custom samplers
+def _vendor_build_dataloader(
+    dataset: MoleculeDataset | ReactionDataset | MulticomponentDataset,
+    batch_size: int = 64,
+    num_workers: int = 0,
+    class_balance: bool = False,
+    sampler: Any = None,
+    seed: int | None = None,
+    shuffle: bool = True,
+    **kwargs,
+):
+    """Return a :obj:`~torch.utils.data.DataLoader` for :class:`MolGraphDataset`\s
+
+    Parameters
+    ----------
+    dataset : MoleculeDataset | ReactionDataset | MulticomponentDataset
+        The dataset containing the molecules or reactions to load.
+    batch_size : int, default=64
+        the batch size to load.
+    num_workers : int, default=0
+        the number of workers used to build batches.
+    class_balance : bool, default=False
+        Whether to perform class balancing (i.e., use an equal number of positive and negative
+        molecules). Class balance is only available for single task classification datasets. Set
+        shuffle to True in order to get a random subset of the larger class.
+    seed : int, default=None
+        the random seed to use for shuffling (only used when `shuffle` is `True`).
+    shuffle : bool, default=False
+        whether to shuffle the data during sampling.
+    """
+    if sampler is not None:
+
+        if class_balance:
+            sampler = ClassBalanceSampler(dataset.Y, seed, shuffle)
+        elif shuffle and seed is not None:
+            sampler = SeededSampler(len(dataset), seed)
+        else:
+            sampler = None
+
+
+    if isinstance(dataset, MulticomponentDataset):
+        collate_fn = collate_multicomponent
+    else:
+        collate_fn = collate_batch
+
+    if len(dataset) % batch_size == 1:
+        drop_last = True
+    else:
+        drop_last = False
+
+    return DataLoader(
+        dataset,
+        batch_size,
+        sampler is None and shuffle,
+        sampler,
+        num_workers=num_workers,
+        collate_fn=collate_fn,
+        drop_last=drop_last,
+        **kwargs,
+    )
 
 @featurizers.register("ChemPropFeaturizer")
 class ChemPropFeaturizer(FeaturizerBase):
@@ -43,10 +107,24 @@ class ChemPropFeaturizer(FeaturizerBase):
             )
             scaler = None
 
-        dataloader = build_dataloader(
+        dataloader = self.dataset_to_dataloader(
             dataset,
             num_workers=self.n_jobs,
             shuffle=self.shuffle,
             batch_size=self.batch_size,
         )
-        return dataloader, scaler
+        return dataloader, scaler, dataset
+
+
+    @staticmethod
+    def dataset_to_dataloader(dataset: MoleculeDataset, batch_size: int = 128, shuffle: bool = False, sampler=None, **kwargs) -> DataLoader:
+        """
+        Convert a MoleculeDataset to a DataLoader
+        """
+        return _vendor_build_dataloader(
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            sampler=sampler,
+            **kwargs,
+        )

@@ -65,6 +65,13 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
         instance = cls(**class_params, model_params=model_params)
         instance.build()
         return instance
+    
+
+    def make_new(self) -> "ChemPropSingleTaskRegressorModel":
+        """
+        Copy parameters to a new model instance without copying the estimator
+        """
+        return self.__class__(**self.model_params, **self.dict(exclude={"estimator"})).build()
 
     def train(self, dataloader, scaler=None):
         """
@@ -106,6 +113,8 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
 
         else:
             logger.warning("Model already exists, skipping build")
+
+        return self
 
     def predict(self, X: np.ndarray, accelerator="gpu", devices=1) -> np.ndarray:
         """
