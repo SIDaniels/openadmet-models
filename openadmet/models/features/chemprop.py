@@ -21,7 +21,7 @@ def _vendor_build_dataloader(
     shuffle: bool = True,
     **kwargs,
 ):
-    """Return a :obj:`~torch.utils.data.DataLoader` for :class:`MolGraphDataset`\s
+    r"""Return a :obj:`~torch.utils.data.DataLoader` for :class:`MolGraphDataset`\s
 
     Parameters
     ----------

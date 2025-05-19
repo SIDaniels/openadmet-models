@@ -639,7 +639,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                 use_wandb=use_wandb,
                 tag=model_tag,
                 target_labels=target_labels,
-            
+
             )
 
             # Write evaluation report

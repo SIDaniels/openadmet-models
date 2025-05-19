@@ -319,11 +319,11 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             fold_train_subset = Subset(train_dataset, fold_train_ids)
             fold_train_dataloader = featurizer.dataset_to_dataloader(
                 fold_train_subset, batch_size=X_train.batch_size, shuffle=True)
-            
+
             fold_val_subset = Subset(train_dataset, fold_val_ids)
             fold_val_dataloader = featurizer.dataset_to_dataloader(
                 fold_val_subset, batch_size=X_train.batch_size, shuffle=False)
-            
+
 
 
 
@@ -381,6 +381,6 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
 
 
 
-                
-                
-        
+
+
+

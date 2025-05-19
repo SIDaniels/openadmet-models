@@ -65,7 +65,7 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
         instance = cls(**class_params, model_params=model_params)
         instance.build()
         return instance
-    
+
 
     def make_new(self) -> "ChemPropSingleTaskRegressorModel":
         """

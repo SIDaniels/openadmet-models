@@ -77,5 +77,4 @@ class LightningTrainer(TrainerBase):
         self._trainer.fit(self.model._estimator, train_dataloader, val_dataloader)
 
         return self.model
-    
 
