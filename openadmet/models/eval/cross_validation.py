@@ -28,8 +28,10 @@ def wrap_spearmanr(y_true, y_pred):
     return nan_omit_spearmanr(y_true, y_pred).correlation
 
 
-@evaluators.register("SKLearnRepeatedKFoldCrossValidation")
-class SKLearnRepeatedKFoldCrossValidation(EvalBase):
+class CVBase(EvalBase):
+    """
+    Base class for cross-validation
+    """
     n_splits: int = 5
     n_repeats: int = 5
     random_state: int = 42
@@ -55,6 +57,38 @@ class SKLearnRepeatedKFoldCrossValidation(EvalBase):
     }
     min_val: float = Field(None, description="Minimum value for the axes")
     max_val: float = Field(None, description="Maximum value for the axes")
+
+    @property
+    def metric_names(self):
+        """
+        Return the metric names
+        """
+        return list(self._metrics.keys())
+
+    def report(self, write=False, output_dir=None):
+        """
+        Report the evaluation
+        """
+        if write:
+            self.write_report(output_dir)
+        return self.data
+
+    def write_report(self, output_dir):
+        """
+        Write the evaluation report
+        """
+        # write to JSON
+        with open(output_dir / "cross_validation_metrics.json", "w") as f:
+            json.dump(self.data, f, indent=2)
+
+        # write each plot to a file
+        for plot_tag, plot in self.plot_data.items():
+            plot.savefig(output_dir / f"{plot_tag}.png", dpi=900)
+
+
+
+@evaluators.register("SKLearnRepeatedKFoldCrossValidation")
+class SKLearnRepeatedKFoldCrossValidation(CVBase):
 
     def evaluate(
         self,
@@ -155,12 +189,6 @@ class SKLearnRepeatedKFoldCrossValidation(EvalBase):
 
         return self.data
 
-    @property
-    def metric_names(self):
-        """
-        Return the metric names
-        """
-        return list(self._metrics.keys())
 
     def make_stat_caption(self):
         """
@@ -177,22 +205,112 @@ class SKLearnRepeatedKFoldCrossValidation(EvalBase):
         stat_caption += f"Confidence level: {self.confidence_level}"
         return stat_caption
 
-    def report(self, write=False, output_dir=None):
-        """
-        Report the evaluation
-        """
-        if write:
-            self.write_report(output_dir)
-        return self.data
 
-    def write_report(self, output_dir):
-        """
-        Write the evaluation report
-        """
-        # write to JSON
-        with open(output_dir / "cross_validation_metrics.json", "w") as f:
-            json.dump(self.data, f, indent=2)
 
-        # write each plot to a file
-        for plot_tag, plot in self.plot_data.items():
-            plot.savefig(output_dir / f"{plot_tag}.png", dpi=900)
+
+
+
+
+
+@evaluators.register("PytorchLightningRepeatedKFoldCrossValidation")
+class PytorchLightningRepeatedKFoldCrossValidation(EvalBase):
+    n_splits: int = 5
+    n_repeats: int = 5
+    random_state: int = 42
+    _evaluated: bool = False
+    axes_labels: list[str] = Field(
+        ["Measured", "Predicted"], description="Labels for the axes"
+    )
+    title: str = Field("Pred vs ", description="Title for the plot")
+    pXC50: bool = Field(
+        False,
+        description="Whether to plot for pXC50, highlighting 0.5 and 1.0 log range unit",
+    )
+    confidence_level: float = Field(
+        0.95, description="Confidence level for the confidence interval"
+    )
+
+    _metrics: dict = {
+        "mse": (make_scorer(mean_squared_error), False, "MSE"),
+        "mae": (make_scorer(mean_absolute_error), False, "MAE"),
+        "r2": (make_scorer(r2_score), False, "$R^2$"),
+        "ktau": (make_scorer(wrap_ktau), True, "Kendall's $\\tau$"),
+        "spearmanr": (make_scorer(wrap_spearmanr), True, "Spearman's $\\rho$"),
+    }
+    min_val: float = Field(None, description="Minimum value for the axes")
+    max_val: float = Field(None, description="Maximum value for the axes")
+    use_wandb: bool = Field(False, description="Whether to use wandb")
+
+
+    def evaluate(
+        self,
+        model=None,
+        X_train=None,
+        y_train=None,
+        y_pred=None,
+        y_true=None,
+        tag=None,
+        use_wandb=False,
+        **kwargs,
+    ):
+        logger.info("Starting cross-validation")
+        """
+        Evaluate the regression model
+        """
+        if (
+            model is None
+            or X_train is None
+            or y_train is None
+            or y_pred is None
+            or y_true is None
+            or tag is None
+        ):
+            raise ValueError(
+                "model, X_train, y_train, y_pred, y_true, and tag must be provided"
+            )
+
+
+        n_tasks = y_true.shape[1]
+        assert n_tasks == y_pred.shape[1]
+        if target_labels is None:
+            target_labels = [f'task_{i}' for i in range(n_tasks)]
+
+        self.data = {"tag": tag}
+
+        if use_wandb:
+            self.use_wandb = use_wandb
+
+
+        # store the metric names and callables in dict suitable for sklearn cross_validate
+        self.sklearn_metrics = {k: v[0] for k, v in self._metrics.items()}
+
+        logger.info("Starting cross-validation")
+
+        # run CV
+        cv = RepeatedKFold(
+            n_splits=self.n_splits,
+            n_repeats=self.n_repeats,
+            random_state=self.random_state,
+        )
+
+        for i, train_ids, val_ids in cv.split(X_train):
+            logger.info(f"Fold {i + 1} of {self.n_splits * self.n_repeats}")
+            X_train_fold = X_train[train_ids]
+            y_train_fold = y_train[train_ids]
+            X_val_fold = X_train[val_ids]
+            y_val_fold = y_train[val_ids]
+
+            model = model.clone()
+
+            train_dataloader = XXXX
+            val_loader = XXXX
+            # fit the model
+            trainer = XXXX
+
+            trainer.fit(model, train_dataloader, val_loader)
+            # evaluate the model
+            y_pred_fold = model.predict(X_val_fold)
+            y_true_fold = y_val_fold
+
+            raise ValueError("STOP")
+            
