@@ -10,6 +10,7 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score,
 )
+from collections import defaultdict
 from sklearn.model_selection import RepeatedKFold, cross_validate
 
 from openadmet.models.eval.eval_base import EvalBase, evaluators
@@ -18,7 +19,7 @@ from openadmet.models.eval.regression import (
     nan_omit_ktau,
     nan_omit_spearmanr,
 )
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch.utils.data import DataLoader, SubsetRandomSampler, Subset
 from openadmet.models.trainer.lightning import LightningTrainer
 
 
@@ -233,12 +234,13 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
     )
 
     _metrics: dict = {
-        "mse": (make_scorer(mean_squared_error), False, "MSE"),
-        "mae": (make_scorer(mean_absolute_error), False, "MAE"),
-        "r2": (make_scorer(r2_score), False, "$R^2$"),
-        "ktau": (make_scorer(wrap_ktau), True, "Kendall's $\\tau$"),
-        "spearmanr": (make_scorer(wrap_spearmanr), True, "Spearman's $\\rho$"),
+        "mse": (mean_squared_error, False, "MSE"),
+        "mae": (mean_absolute_error, False, "MAE"),
+        "r2": (r2_score, False, "$R^2$"),
+        "ktau": (nan_omit_ktau, True, "Kendall's $\\tau$"),
+        "spearmanr": (nan_omit_spearmanr, True, "Spearman's $\\rho$"),
     }
+
     min_val: float = Field(None, description="Minimum value for the axes")
     max_val: float = Field(None, description="Maximum value for the axes")
     use_wandb: bool = Field(False, description="Whether to use wandb")
@@ -278,10 +280,6 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             )
 
 
-        # n_tasks = y_true.shape[1]
-        # assert n_tasks == y_pred.shape[1]
-        # if target_labels is None:
-        #     target_labels = [f'task_{i}' for i in range(n_tasks)]
 
         self.data = {"tag": tag}
 
@@ -299,25 +297,35 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             random_state=self.random_state,
         )
 
-        logger.info(f"train dataset length: {len(train_dataset)}")
+
+        # TODO needs multiclass support
+
+
+        self.data = {
+            "shape": [self.n_splits, self.n_repeats],
+            "tag": tag,
+        }
+
+        self._metric_data = defaultdict(list)
 
         for fold, (fold_train_ids, fold_val_ids) in enumerate(cv.split(train_dataset)):
             logger.info(f"Fold {fold}")
 
-            logger.info(f"Fold train dataset length: {len(fold_train_ids)}")
-            logger.info(f"Fold val dataset length: {len(fold_val_ids)}")
+            logger.info(f"Fold train length: {len(fold_train_ids)}")
+            logger.info(f"Fold val length: {len(fold_val_ids)}")
+
 
             # Get the train and validation sets for this fold
+            fold_train_subset = Subset(train_dataset, fold_train_ids)
             fold_train_dataloader = featurizer.dataset_to_dataloader(
-                train_dataset, batch_size=X_train.batch_size, shuffle=True, sampler=SubsetRandomSampler(fold_train_ids)
-            )
+                fold_train_subset, batch_size=X_train.batch_size, shuffle=True)
+            
+            fold_val_subset = Subset(train_dataset, fold_val_ids)
             fold_val_dataloader = featurizer.dataset_to_dataloader(
-                train_dataset, batch_size=X_train.batch_size, shuffle=False, sampler=SubsetRandomSampler(fold_val_ids)
-            )
+                fold_val_subset, batch_size=X_train.batch_size, shuffle=False)
+            
 
 
-            logger.info(f"Fold train dataloader length: {len(fold_train_dataloader)}")
-            logger.info(f"Fold val dataloader length: {len(fold_val_dataloader)}")
 
 
 
@@ -339,16 +347,40 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
 
 
 
-            fold_trainer.train(fold_train_dataloader, fold_val_dataloader)
+            fold_model = fold_trainer.train(fold_train_dataloader, fold_val_dataloader)
             # evaluate the model
             y_pred_fold = fold_model.predict(fold_val_dataloader)
-            print(f"y_pred_fold shape: {y_pred_fold.shape}")
-            print("y_pred")
-            print(y_pred_fold)
-            # y_true_fold = y_val_fold
+            y_true_fold = train_dataset.Y[fold_val_ids]
 
-            # Calculate the metrics
+            for metric_name, metric_data in self._metrics.items():
+                metric_func, _, _ = metric_data
+                # calculate the confidence interval, assuming normal distribution
+                value = metric_func(y_true_fold, y_pred_fold)
+                self._metric_data[metric_name].append(value)
 
+        # calculate the mean and confidence interval for each metric
+        for metric_name, metric_data in self._metrics.items():
+            metric_func, _, _ = metric_data
+            values = self._metric_data[metric_name]
+            mean = np.mean(values)
+            sigma = np.std(values, ddof=1)
+            lower_ci, upper_ci = norm.interval(
+                self.confidence_level, loc=mean, scale=sigma
+            )
+            metric_data = {}
+            metric_data["value"] = values
+            metric_data["mean"] = mean
+            metric_data["lower_ci"] = lower_ci
+            metric_data["upper_ci"] = upper_ci
+            metric_data["confidence_level"] = self.confidence_level
+            self.data[metric_name] = metric_data
+        self._evaluated = True
+
+        logger.info("Cross-validation complete")
+
+
+
+
+                
+                
         
-
-            

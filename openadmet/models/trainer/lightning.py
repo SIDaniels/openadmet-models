@@ -71,7 +71,7 @@ class LightningTrainer(TrainerBase):
         """
 
         # Indicate that the model is being trained
-        logger.info(f"Training model {self.model._estimator}")
+        logger.debug(f"Training model {self.model._estimator}")
 
         # Fit model
         self._trainer.fit(self.model._estimator, train_dataloader, val_dataloader)
