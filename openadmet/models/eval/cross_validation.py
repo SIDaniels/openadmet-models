@@ -309,23 +309,16 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
 
             # Get the train and validation sets for this fold
             fold_train_dataloader = featurizer.dataset_to_dataloader(
-                train_dataset, batch_size=trainer.batch_size, shuffle=True, sampler=SubsetRandomSampler(fold_train_ids)
+                train_dataset, batch_size=X_train.batch_size, shuffle=True, sampler=SubsetRandomSampler(fold_train_ids)
             )
             fold_val_dataloader = featurizer.dataset_to_dataloader(
-                train_dataset, batch_size=trainer.batch_size, shuffle=False, sampler=SubsetRandomSampler(fold_val_ids)
+                train_dataset, batch_size=X_train.batch_size, shuffle=False, sampler=SubsetRandomSampler(fold_val_ids)
             )
 
 
             logger.info(f"Fold train dataloader length: {len(fold_train_dataloader)}")
             logger.info(f"Fold val dataloader length: {len(fold_val_dataloader)}")
 
-
-            data_iter = iter(fold_train_dataloader)
-            features, labels = next(data_iter)
-            print(features)
-            print(labels)
-
-            raise ValueError("STOP")
 
 
             fold_model = model.make_new()
@@ -334,7 +327,7 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
                 max_epochs=trainer.max_epochs,
                 accelerator=trainer.accelerator,
                 devices=trainer.devices,
-                use_wandb=trainer.use_wandb,
+                use_wandb=False,
                 output_dir=trainer.output_dir / "cv" /  f"fold_{str(fold)}",
                 wandb_project=trainer.wandb_project,
             )
@@ -344,19 +337,18 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             fold_trainer.model = fold_model
             fold_trainer.prepare()
 
-            print(len(fold_train_dataloader))
-            print(len(fold_val_dataloader))
-            # raise ValueError("STOP")
 
 
             fold_trainer.train(fold_train_dataloader, fold_val_dataloader)
             # evaluate the model
-            y_pred_fold = model.predict(fold_val_dataloader)
+            y_pred_fold = fold_model.predict(fold_val_dataloader)
+            print(f"y_pred_fold shape: {y_pred_fold.shape}")
+            print("y_pred")
+            print(y_pred_fold)
             # y_true_fold = y_val_fold
 
             # Calculate the metrics
 
-            raise ValueError("STOP")
         
 
             
