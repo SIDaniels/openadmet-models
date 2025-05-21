@@ -324,7 +324,9 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             fold_val_dataloader = featurizer.dataset_to_dataloader(
                 fold_val_subset, batch_size=X_train.batch_size, shuffle=False)
 
-
+            fold_val_subset2 = Subset(train_dataset, fold_val_ids)
+            fold_val_dataloader2 = featurizer.dataset_to_dataloader(
+                fold_val_subset2, batch_size=X_train.batch_size, shuffle=False)
 
 
 
@@ -349,8 +351,15 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
 
             fold_model = fold_trainer.train(fold_train_dataloader, fold_val_dataloader)
             # evaluate the model
-            y_pred_fold = fold_model.predict(fold_val_dataloader)
+            y_pred_fold = fold_model.predict(fold_val_dataloader2, accelerator=trainer.accelerator,
+            devices=trainer.devices)
+
             y_true_fold = train_dataset.Y[fold_val_ids]
+
+            print(f"y_true_fold: {y_true_fold}")
+            print(f"y_pred_fold: {y_pred_fold}")
+
+            raise ValueError("Debugging")
 
             for metric_name, metric_data in self._metrics.items():
                 metric_func, _, _ = metric_data
