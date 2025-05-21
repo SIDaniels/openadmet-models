@@ -386,10 +386,3 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
         self._evaluated = True
 
         logger.info("Cross-validation complete")
-
-
-
-
-
-
-
