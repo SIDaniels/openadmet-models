@@ -183,7 +183,7 @@ class MTENNFeaturizer(FeaturizerBase):
         # if a pandas dataframe or series
         if isinstance(y, pd.DataFrame) or isinstance(y, pd.Series):
                 y = y.to_numpy()
-        y = y.to_numpy().reshape(-1, 1)
+        y = y.reshape(-1, 1)
 
         self._dataset = MTENNDataset(
             complexes=complexes,

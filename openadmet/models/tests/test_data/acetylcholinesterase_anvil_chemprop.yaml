@@ -21,7 +21,7 @@ data:
   type: intake
   resource: "{{ANVIL_DIR}}/ACEH_chembl_pchembl.csv"
   input_col: "OPENADMET_SMILES"
-  target_col: "pchembl_value_mean"
+  target_cols: ["pchembl_value_mean"]
 
   transform:
 
