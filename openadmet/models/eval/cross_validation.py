@@ -238,8 +238,8 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
         "mse": (mean_squared_error, False, "MSE"),
         "mae": (mean_absolute_error, False, "MAE"),
         "r2": (r2_score, False, "$R^2$"),
-        "ktau": (nan_omit_ktau, True, "Kendall's $\\tau$"),
-        "spearmanr": (nan_omit_spearmanr, True, "Spearman's $\\rho$"),
+        "ktau": (wrap_ktau, True, "Kendall's $\\tau$"),
+        "spearmanr": (wrap_spearmanr, True, "Spearman's $\\rho$"),
     }
 
     min_val: float = Field(None, description="Minimum value for the axes")
@@ -256,9 +256,6 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
         y_train=None,
         X_train_raw=None,
         y_train_raw=None,
-        train_dataset=None,
-        val_dataset=None,
-        test_dataset=None,
         featurizer=None,
         trainer=None,
         tag=None,
@@ -269,18 +266,20 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
         """
         Evaluate the regression model
         """
-        # if (
-        #     model is None
-        #     or X_train is None
-        #     or y_train is None
-        #     or y_pred is None
-        #     or y_true is None
-        #     or tag is None
-        #     or train_dataset is None
-        # ):
-        #     raise ValueError(
-        #         "model, X_train, y_train, y_pred, y_true, and tag must be provided"
-        #     )
+        if (
+            model is None
+            or X_train is None
+            or y_train is None
+            or y_pred is None
+            or y_true is None
+            or tag is None
+            or X_train_raw is None
+            or y_train_raw is None
+            or featurizer is None
+            or trainer is None):
+            raise ValueError(
+                "model, X_train, y_train, y_pred, y_true, and tag must be provided"
+            )
 
 
 
@@ -361,7 +360,7 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
 
 
             for metric_name, metric_data in self._metrics.items():
-                metric_func, _, _ = metric_data
+                metric_func, is_scipy_metric, _ = metric_data
                 value = metric_func(y_val, y_pred_fold)
                 self._metric_data[metric_name].append(value)
 
