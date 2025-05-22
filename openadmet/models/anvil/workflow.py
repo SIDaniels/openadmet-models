@@ -614,6 +614,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             accelerator=self.trainer.accelerator,
             devices=self.trainer.devices,
         )
+
         logger.info("Predictions made")
 
         # Run evaluation on train/test
@@ -631,9 +632,8 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                 model=self.model,
                 X_train=train_dataloader,
                 y_train=train_dataloader,
-                train_dataset=train_dataset,
-                val_dataset=val_dataset,
-                test_dataset=test_dataset,
+                X_train_raw=X_train,
+                y_train_raw=y_train,
                 featurizer=self.feat,
                 trainer=self.trainer,
                 use_wandb=use_wandb,

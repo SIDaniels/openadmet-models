@@ -10,6 +10,7 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score,
 )
+import pandas as pd
 from collections import defaultdict
 from sklearn.model_selection import RepeatedKFold, cross_validate
 
@@ -250,9 +251,11 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
         self,
         model=None,
         X_train=None,
-        y_train=None,
-        y_pred=None,
         y_true=None,
+        y_pred=None,
+        y_train=None,
+        X_train_raw=None,
+        y_train_raw=None,
         train_dataset=None,
         val_dataset=None,
         test_dataset=None,
@@ -266,18 +269,18 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
         """
         Evaluate the regression model
         """
-        if (
-            model is None
-            or X_train is None
-            or y_train is None
-            or y_pred is None
-            or y_true is None
-            or tag is None
-            or train_dataset is None
-        ):
-            raise ValueError(
-                "model, X_train, y_train, y_pred, y_true, and tag must be provided"
-            )
+        # if (
+        #     model is None
+        #     or X_train is None
+        #     or y_train is None
+        #     or y_pred is None
+        #     or y_true is None
+        #     or tag is None
+        #     or train_dataset is None
+        # ):
+        #     raise ValueError(
+        #         "model, X_train, y_train, y_pred, y_true, and tag must be provided"
+        #     )
 
 
 
@@ -308,30 +311,33 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
 
         self._metric_data = defaultdict(list)
 
-        for fold, (fold_train_ids, fold_val_ids) in enumerate(cv.split(train_dataset)):
+
+        # cast to numpy arrays
+        X_train_raw = X_train_raw.to_numpy()
+        y_train_raw = y_train_raw.to_numpy()
+
+
+        for fold, (fold_train_ids, fold_val_ids) in enumerate(cv.split(X=X_train_raw, y=y_train_raw)):
             logger.info(f"Fold {fold}")
 
             logger.info(f"Fold train length: {len(fold_train_ids)}")
             logger.info(f"Fold val length: {len(fold_val_ids)}")
 
+            X_train = X_train_raw[fold_train_ids]
+            y_train = y_train_raw[fold_train_ids]
+            X_val = X_train_raw[fold_val_ids]
+            y_val = y_train_raw[fold_val_ids]
 
-            # Get the train and validation sets for this fold
-            fold_train_subset = Subset(train_dataset, fold_train_ids)
-            fold_train_dataloader = featurizer.dataset_to_dataloader(
-                fold_train_subset, batch_size=X_train.batch_size, shuffle=True)
+            fold_featurizer = featurizer.make_new()
 
-            fold_val_subset = Subset(train_dataset, fold_val_ids)
-            fold_val_dataloader = featurizer.dataset_to_dataloader(
-                fold_val_subset, batch_size=X_train.batch_size, shuffle=False)
+            fold_train_dataloader, fold_train_scaler, _ = fold_featurizer.featurize(
+                X_train, y_train
+            )
 
-            fold_val_subset2 = Subset(train_dataset, fold_val_ids)
-            fold_val_dataloader2 = featurizer.dataset_to_dataloader(
-                fold_val_subset2, batch_size=X_train.batch_size, shuffle=False)
-
-
-
-
+            fold_val_dataloader, _, _ = fold_featurizer.featurize(X_val, y_val)
             fold_model = model.make_new()
+            fold_model.build(scaler=fold_train_scaler)
+
 
             fold_trainer = LightningTrainer(
                 max_epochs=trainer.max_epochs,
@@ -347,24 +353,16 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             fold_trainer.model = fold_model
             fold_trainer.prepare()
 
-
-
+            # Pass the dataloaders to the trainer
             fold_model = fold_trainer.train(fold_train_dataloader, fold_val_dataloader)
             # evaluate the model
-            y_pred_fold = fold_model.predict(fold_val_dataloader2, accelerator=trainer.accelerator,
+            y_pred_fold = fold_model.predict(fold_val_dataloader, accelerator=trainer.accelerator,
             devices=trainer.devices)
 
-            y_true_fold = train_dataset.Y[fold_val_ids]
-
-            print(f"y_true_fold: {y_true_fold}")
-            print(f"y_pred_fold: {y_pred_fold}")
-
-            raise ValueError("Debugging")
 
             for metric_name, metric_data in self._metrics.items():
                 metric_func, _, _ = metric_data
-                # calculate the confidence interval, assuming normal distribution
-                value = metric_func(y_true_fold, y_pred_fold)
+                value = metric_func(y_val, y_pred_fold)
                 self._metric_data[metric_name].append(value)
 
         # calculate the mean and confidence interval for each metric
@@ -385,4 +383,41 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             self.data[metric_name] = metric_data
         self._evaluated = True
 
-        logger.info("Cross-validation complete")
+        self.plots = {
+            "cross_validation_regplot": RegressionPlots.regplot,
+        }
+
+        self.plot_data = {}
+
+        stat_caption = self.make_stat_caption()
+
+        # create the plots
+        for plot_tag, plot in self.plots.items():
+            self.plot_data[plot_tag] = plot(
+                y_true,
+                y_pred,
+                xlabel=self.axes_labels[0],
+                ylabel=self.axes_labels[1],
+                title=self.title,
+                stat_caption=stat_caption,
+                pXC50=self.pXC50,
+                min_val=self.min_val,
+                max_val=self.max_val,
+            )
+
+        return self.data
+
+    def make_stat_caption(self):
+        """
+        Make a caption for the statistics
+        """
+        if not self._evaluated:
+            raise ValueError("Must evaluate before making a caption")
+        stat_caption = ""
+        for metric in self.metric_names:
+            value = self.data[metric]["mean"]
+            lower_ci = self.data[metric]["lower_ci"]
+            upper_ci = self.data[metric]["upper_ci"]
+            stat_caption += f"{self._metrics[metric][2]}: {value:.2f}$_{{{lower_ci:.2f}}}^{{{upper_ci:.2f}}}$\n"
+        stat_caption += f"Confidence level: {self.confidence_level}"
+        return stat_caption

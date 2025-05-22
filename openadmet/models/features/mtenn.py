@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 import numpy as np
 import warnings
 from rdkit.Chem import GetPeriodicTable
+import pandas as pd
 
 ptable = GetPeriodicTable()
 
@@ -179,6 +180,9 @@ class MTENNFeaturizer(FeaturizerBase):
         """
         Featurize a list of SMILES strings
         """
+        # if a pandas dataframe or series
+        if isinstance(y, pd.DataFrame) or isinstance(y, pd.Series):
+                y = y.to_numpy()
         y = y.to_numpy().reshape(-1, 1)
 
         self._dataset = MTENNDataset(

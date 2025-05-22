@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from typing import Any
-
+import pandas as pd
 from chemprop.data import MoleculeDatapoint, MoleculeDataset, ReactionDataset, MulticomponentDataset
 from chemprop.data.samplers import ClassBalanceSampler, SeededSampler
 from chemprop.data.collate import collate_batch, collate_multicomponent
@@ -92,8 +92,11 @@ class ChemPropFeaturizer(FeaturizerBase):
         Featurize a list of SMILES strings
         """
         if y is not None:
-            #fix broken for multi-task
-            y = y.to_numpy().reshape(-1, 1) if y.ndim == 1 else y.to_numpy()
+            # if a pandas dataframe or series
+            if isinstance(y, pd.DataFrame) or isinstance(y, pd.Series):
+                y = y.to_numpy()
+            y = y.reshape(-1, 1) if y.ndim == 1 else y
+            
             dataset = MoleculeDataset(
                 [MoleculeDatapoint.from_smi(smi, y_) for smi, y_ in zip(smiles, y)]
             )
@@ -128,3 +131,10 @@ class ChemPropFeaturizer(FeaturizerBase):
             sampler=sampler,
             **kwargs,
         )
+    
+
+    def make_new(self) -> "ChemPropFeaturizer":
+        """
+        Copy parameters to a new ChemPropFeaturizer instance
+        """
+        return self.__class__(**self.dict())

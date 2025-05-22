@@ -11,6 +11,7 @@ from pydantic import field_validator
 
 from openadmet.models.architecture.model_base import TorchModelBase
 from openadmet.models.architecture.model_base import models as model_registry
+from openadmet.models.features.chemprop import ChemPropFeaturizer
 
 _METRIC_TO_LOSS = {"mse": nn.metrics.MSE(), "mae": nn.metrics.MAE(), "rmse": nn.metrics.RMSE()}
 
@@ -71,7 +72,7 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
         """
         Copy parameters to a new model instance without copying the estimator
         """
-        return self.__class__(**self.model_params, **self.dict(exclude={"estimator"})).build()
+        return self.__class__(**self.model_params, **self.dict(exclude={"estimator"}))
 
     def train(self, dataloader, scaler=None):
         """
@@ -123,9 +124,18 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
         if not self.estimator:
             raise AttributeError("Model not trained")
 
+        self.estimator.eval()
+
         with torch.inference_mode():
             trainer = pl.Trainer(
                 logger=None, enable_progress_bar=False, accelerator=accelerator, devices=devices
             )
             preds = trainer.predict(self.estimator, X)
         return torch.cat(preds).numpy()
+    
+
+    def featurizer(self):
+        """
+        Return the featurizer
+        """
+        return ChemPropFeaturizer
