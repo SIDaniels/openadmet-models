@@ -96,7 +96,7 @@ class ChemPropFeaturizer(FeaturizerBase):
             if isinstance(y, pd.DataFrame) or isinstance(y, pd.Series):
                 y = y.to_numpy()
             y = y.reshape(-1, 1) if y.ndim == 1 else y
-            
+
             dataset = MoleculeDataset(
                 [MoleculeDatapoint.from_smi(smi, y_) for smi, y_ in zip(smiles, y)]
             )
@@ -131,7 +131,7 @@ class ChemPropFeaturizer(FeaturizerBase):
             sampler=sampler,
             **kwargs,
         )
-    
+
 
     def make_new(self) -> "ChemPropFeaturizer":
         """
