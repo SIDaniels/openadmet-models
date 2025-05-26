@@ -49,7 +49,7 @@ class LGBMModelBase(PickleableModelBase):
         """
         if not self.estimator:
             raise ValueError("Model not trained")
-        return self.estimator.predict(X)
+        return np.expand_dims(self.estimator.predict(X), axis=1)
 
 
 @models.register("LGBMRegressorModel")
