@@ -38,7 +38,8 @@ def predict(input_path:str,
         logger.debug(metadata)
         logger.debug(f"Model: {model.estimator}")
         logger.debug(f"Feature: {feat}")
-        X_feat, _ = feat.featurize(data[input_col])
+        feat_data  = feat.featurize(data[input_col])
+        X_feat = feat_data[0]
 
         predictions = model.predict(X_feat, accelerator=accelerator)
 
