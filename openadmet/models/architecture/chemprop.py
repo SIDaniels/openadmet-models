@@ -33,6 +33,7 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
     messages: str = "bond"
     aggregation: str = "norm"
     normalized_targets: bool = True
+    n_tasks: int = 1
 
 
     @field_validator("messages")
@@ -105,7 +106,7 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
             mp = message_cls(d_h=self.message_hidden_dim, depth=self.depth)
             aggr = aggregation_cls()
 
-            ffn = nn.RegressionFFN(input_dim=self.message_hidden_dim, hidden_dim=self.ffn_hidden_dim, n_layers=self.ffn_num_layers, output_transform=output_transform)
+            ffn = nn.RegressionFFN(n_tasks=self.n_tasks, input_dim=self.message_hidden_dim, hidden_dim=self.ffn_hidden_dim, n_layers=self.ffn_num_layers, output_transform=output_transform)
             # Create the MPNN model
 
             mpnn = models.MPNN(mp, aggr, ffn, self.batch_norm, metric_list)

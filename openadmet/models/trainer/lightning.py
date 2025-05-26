@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 from lightning import pytorch as pl
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import CSVLogger, WandbLogger
 from loguru import logger
 
@@ -21,15 +21,24 @@ class LightningTrainer(TrainerBase):
     use_wandb: bool = False
     output_dir: Path = None
     wandb_project: str = "openadmet-testing"
+    early_stopping: bool = False
 
     wandb_logger: Any = None
     _logger: Any
     _trainer: Any
+    _callbacks: Any = None
 
     def prepare(self):
         """
         Build the model trainer
         """
+
+
+        # Initialize logging container
+        self._logger = []
+
+        # initialize the callbacks list
+        self._callbacks = []
 
         # Configure checkpoint callbacks
         checkpointing = ModelCheckpoint(
@@ -42,8 +51,19 @@ class LightningTrainer(TrainerBase):
             save_top_k=1,  # Keep the top 1 checkpoints
         )
 
-        # Initialize logging container
-        self._logger = []
+        if self.early_stopping:
+            # Import EarlyStopping callback if early stopping is enabled
+
+            # Configure early stopping callback
+            early_stopping_callback = EarlyStopping(
+                monitor="val_loss",  # Monitor validation loss for early stopping
+                patience=10,  # Number of epochs with no improvement after which training will be stopped
+                mode="min",  # Stop when validation loss stops decreasing
+            )
+            self._logger.append(early_stopping_callback)
+
+        # Append the checkpointing callback to the callbacks list
+        self._callbacks.append(checkpointing)
 
         # Append wandb longer if requested
         if self.use_wandb:
@@ -54,6 +74,8 @@ class LightningTrainer(TrainerBase):
 
         # Append CSV logger
         self._logger.append(CSVLogger(self.output_dir / "logs", name="model"))
+
+
 
         # Initialize the PyTorch Lightning trainer
         self._trainer = pl.Trainer(
