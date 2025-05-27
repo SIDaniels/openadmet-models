@@ -469,13 +469,8 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
     driver: Drivers = Drivers.PYTORCH
 
-    @model_validator(mode="after")
-    def check_for_val(self):
-        # Check that val_size is not zero
-        if self.split.val_size == 0:
-            raise ValueError("Validation set required by this workflow.")
-        return self
 
+    
     def run(
         self, output_dir: PathLike = "anvil_run", debug: bool = False, tag: str = None
     ) -> Any:
@@ -558,10 +553,12 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
         # Save splits to CSV outputs
         X_train.to_csv(data_dir / "X_train.csv", index=False)
-        X_val.to_csv(data_dir / "X_val.csv", index=False)
+        if X_val is not None:
+            X_val.to_csv(data_dir / "X_val.csv", index=False)
         X_test.to_csv(data_dir / "X_test.csv", index=False)
         y_train.to_csv(data_dir / "y_train.csv", index=False)
-        y_val.to_csv(data_dir / "y_val.csv", index=False)
+        if y_val is not None:
+            y_val.to_csv(data_dir / "y_val.csv", index=False)
         y_test.to_csv(data_dir / "y_test.csv", index=False)
 
         logger.info("Data split")
@@ -571,8 +568,13 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         train_dataloader, train_scaler, train_dataset = self.feat.featurize(X_train, y_train)
         torch.save(train_dataloader, output_dir / "train_dataloader.pth")
 
-        val_dataloader, _, val_dataset = self.feat.featurize(X_val, y_val)
-        torch.save(val_dataloader, output_dir / "val_dataloader.pth")
+        if X_val is not None and y_val is not None:
+            val_dataloader, _, val_dataset = self.feat.featurize(X_val, y_val)
+            torch.save(val_dataloader, output_dir / "val_dataloader.pth")
+        else:
+            val_dataloader = None
+            val_dataset = None
+            logger.warning("Validation set is None, skipping validation dataloader")
 
         test_dataloader, _, test_dataset = self.feat.featurize(X_test, y_test)
         torch.save(test_dataloader, output_dir / "test_dataloader.pth")
@@ -599,7 +601,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
         # Commence model training
         logger.info("Training model")
-        self.model = self.trainer.train(train_dataloader, val_dataloader)
+        self.model = self.trainer.train(train_dataloader, val_dataloader if val_dataloader else None)
         logger.info("Model trained")
 
         # Save serialized model
