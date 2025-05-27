@@ -73,7 +73,7 @@ class ChemPropSingleTaskRegressorModel(TorchModelBase):
         """
         Copy parameters to a new model instance without copying the estimator
         """
-        return self.__class__(**self.model_params, **self.dict(exclude={"estimator"}))
+        return self.__class__(**self.mod_params, **self.dict(exclude={"estimator"}))
 
     def train(self, dataloader, scaler=None):
         """
