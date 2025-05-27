@@ -19,9 +19,11 @@ from openadmet.models.eval.regression import (
     RegressionPlots,
     nan_omit_ktau,
     nan_omit_spearmanr,
+    mask_nans,
 )
 from torch.utils.data import DataLoader, SubsetRandomSampler, Subset
 from openadmet.models.trainer.lightning import LightningTrainer
+import wandb
 
 
 def wrap_ktau(y_true, y_pred):
@@ -69,30 +71,16 @@ class CVBase(EvalBase):
         """
         return list(self._metrics.keys())
 
-    def report(self, write=False, output_dir=None):
-        """
-        Report the evaluation
-        """
-        if write:
-            self.write_report(output_dir)
-        return self.data
 
-    def write_report(self, output_dir):
-        """
-        Write the evaluation report
-        """
-        # write to JSON
-        with open(output_dir / "cross_validation_metrics.json", "w") as f:
-            json.dump(self.data, f, indent=2)
-
-        # write each plot to a file
-        for plot_tag, plot in self.plot_data.items():
-            plot.savefig(output_dir / f"{plot_tag}.png", dpi=900)
 
 
 
 @evaluators.register("SKLearnRepeatedKFoldCrossValidation")
 class SKLearnRepeatedKFoldCrossValidation(CVBase):
+    """
+    Cross-validation evaluator for sklearn models, this is aimed at single task regression models currently
+    """
+
 
     def evaluate(
         self,
@@ -209,8 +197,25 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
         stat_caption += f"Confidence level: {self.confidence_level}"
         return stat_caption
 
+    def report(self, write=False, output_dir=None):
+        """
+        Report the evaluation
+        """
+        if write:
+            self.write_report(output_dir)
+        return self.data
 
+    def write_report(self, output_dir):
+        """
+        Write the evaluation report
+        """
+        # write to JSON
+        with open(output_dir / "cross_validation_metrics.json", "w") as f:
+            json.dump(self.data, f, indent=2)
 
+        # write each plot to a file
+        for plot_tag, plot in self.plot_data.items():
+            plot.savefig(output_dir / f"{plot_tag}.png", dpi=900)
 
 
 
@@ -260,6 +265,7 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
         trainer=None,
         tag=None,
         use_wandb=False,
+        target_labels=None,
         **kwargs,
     ):
         logger.info("Starting cross-validation")
@@ -300,15 +306,13 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
         )
 
 
-        # TODO needs multiclass support
-
 
         self.data = {
             "shape": [self.n_splits, self.n_repeats],
             "tag": tag,
         }
 
-        self._metric_data = defaultdict(list)
+        self._metric_data = {}
 
 
         # cast to numpy arrays
@@ -316,17 +320,32 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
         y_train_raw = y_train_raw.to_numpy()
 
 
+        # prepare containers for metrics
+        n_tasks = y_train_raw.shape[1]
+        if target_labels is None:
+            target_labels = [f'task_{i}' for i in range(n_tasks)]
+
+        for task_id in range(n_tasks):
+            t_label = target_labels[task_id]
+            self._metric_data[t_label] = defaultdict(list)
+
+
         for fold, (fold_train_ids, fold_val_ids) in enumerate(cv.split(X=X_train_raw, y=y_train_raw)):
             logger.info(f"Fold {fold}")
-
-            logger.info(f"Fold train length: {len(fold_train_ids)}")
-            logger.info(f"Fold val length: {len(fold_val_ids)}")
 
             X_train = X_train_raw[fold_train_ids]
             y_train = y_train_raw[fold_train_ids]
             X_val = X_train_raw[fold_val_ids]
             y_val = y_train_raw[fold_val_ids]
 
+
+            # print shapes of matrices
+            logger.debug(f"X_train shape: {X_train.shape}")
+            logger.debug(f"y_train shape: {y_train.shape}")
+            logger.debug(f"X_val shape: {X_val.shape}")
+            logger.debug(f"y_val shape: {y_val.shape}")
+
+            # create a new featurizer and model for each fold
             fold_featurizer = featurizer.make_new()
 
             fold_train_dataloader, fold_train_scaler, _ = fold_featurizer.featurize(
@@ -359,27 +378,53 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             devices=trainer.devices)
 
 
-            for metric_name, metric_data in self._metrics.items():
-                metric_func, is_scipy_metric, _ = metric_data
-                value = metric_func(y_val, y_pred_fold)
-                self._metric_data[metric_name].append(value)
 
-        # calculate the mean and confidence interval for each metric
-        for metric_name, metric_data in self._metrics.items():
-            metric_func, _, _ = metric_data
-            values = self._metric_data[metric_name]
-            mean = np.mean(values)
-            sigma = np.std(values, ddof=1)
-            lower_ci, upper_ci = norm.interval(
-                self.confidence_level, loc=mean, scale=sigma
-            )
-            metric_data = {}
-            metric_data["value"] = values
-            metric_data["mean"] = mean
-            metric_data["lower_ci"] = lower_ci
-            metric_data["upper_ci"] = upper_ci
-            metric_data["confidence_level"] = self.confidence_level
-            self.data[metric_name] = metric_data
+
+            # calculate the mean and confidence interval for each metric
+            # loop over tasks and calculate the statistics
+            n_tasks = y_val.shape[1]
+            if not(n_tasks == y_pred_fold.shape[1]):
+                raise ValueError("y_true and y_pred must have the same number of tasks")
+
+
+            for task_id in range(n_tasks):
+                t_true = y_val[:, task_id]
+                t_pred = y_pred_fold[:, task_id]
+                #remove Nan values
+                t_true, t_pred = mask_nans(t_true, t_pred)
+                t_label = target_labels[task_id]
+
+                for metric_name, metric_data in self._metrics.items():
+                    metric_func, is_scipy_metric, _ = metric_data
+                    value = metric_func(t_true, t_pred)
+                    self._metric_data[t_label][metric_name].append(value)
+
+
+        logger.info(f"Fold {fold} complete")
+
+
+
+        for t_label in target_labels:
+            task_data = self._metric_data[t_label]
+            self.data[t_label] = {}
+            for k, v in task_data.items():
+                # calculate the confidence interval, assuming normal distribution
+                # TODO: check best practice???
+                v = np.array(v)
+                mean = v.mean()
+                sigma = v.std(ddof=1)
+                lower_ci, upper_ci = norm.interval(
+                    self.confidence_level, loc=mean, scale=sigma
+                )
+                metric_data = {}
+                metric_data["value"] = v.tolist()
+                metric_data["mean"] = np.mean(v)
+                metric_data["lower_ci"] = lower_ci
+                metric_data["upper_ci"] = upper_ci
+                metric_data["confidence_level"] = self.confidence_level
+                self.data[t_label][k] = metric_data
+
+
         self._evaluated = True
 
         self.plots = {
@@ -388,35 +433,87 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
 
         self.plot_data = {}
 
-        stat_caption = self.make_stat_caption()
+
+        # now the plots 
+
+        for task_id in range(n_tasks):
+            t_true = y_true[:, task_id]
+            t_pred = y_pred[:, task_id]
+            #remove Nan values
+            t_true, t_pred = mask_nans(t_true, t_pred)
+            t_label = target_labels[task_id]
+
+            # stat_caption = self.make_stat_caption()
 
         # create the plots
-        for plot_tag, plot in self.plots.items():
-            self.plot_data[plot_tag] = plot(
-                y_true,
-                y_pred,
-                xlabel=self.axes_labels[0],
-                ylabel=self.axes_labels[1],
-                title=self.title,
-                stat_caption=stat_caption,
-                pXC50=self.pXC50,
-                min_val=self.min_val,
-                max_val=self.max_val,
-            )
+            for plot_tag, plot in self.plots.items():
+                self.plot_data[t_label] = plot(
+                    t_true,
+                    t_pred,
+                    xlabel=self.axes_labels[0],
+                    ylabel=self.axes_labels[1],
+                    title=f'{self.title}: {t_label}',
+                    stat_caption="",
+                    pXC50=self.pXC50,
+                    min_val=self.min_val,
+                    max_val=self.max_val,
+                )
 
         return self.data
+
+    @property
+    def task_names(self):
+        """
+        Return the task names
+        """
+        if not self._evaluated:
+            raise ValueError("Must evaluate before getting task names")
+        return list(self.data.keys())
+
+
+    def report(self, write=False, output_dir=None):
+        """
+        Report the evaluation
+        """
+        if write:
+            self.write_report(output_dir)
+        return self.data
+
+
+    def write_report(self, output_dir):
+        """
+        Write the evaluation report
+        """
+        # write to JSON
+        for task_name, v in self.data.items():
+            with open(output_dir / f"cross_validation_metrics_{task_name}.json", "w") as f:
+                json.dump(v, f, indent=2)
+
+        # write each plot to a file
+        for plot_tag, plot in self.plot_data.items():
+            plot.savefig(output_dir / f"{plot_tag}.png", dpi=900)
+
 
     def make_stat_caption(self):
         """
         Make a caption for the statistics
         """
+        print("Making stat caption")
         if not self._evaluated:
             raise ValueError("Must evaluate before making a caption")
         stat_caption = ""
-        for metric in self.metric_names:
-            value = self.data[metric]["mean"]
-            lower_ci = self.data[metric]["lower_ci"]
-            upper_ci = self.data[metric]["upper_ci"]
-            stat_caption += f"{self._metrics[metric][2]}: {value:.2f}$_{{{lower_ci:.2f}}}^{{{upper_ci:.2f}}}$\n"
-        stat_caption += f"Confidence level: {self.confidence_level}"
+
+        for task_name in self.task_names:
+            if task_name == 'tag' or task_name == 'shape':
+                continue
+
+            stat_caption += f'## {task_name} ##\n'
+            for metric in self.metric_names:
+                value = self.data[task_name][metric]["value"]
+                lower_ci = self.data[task_name][metric]["lower_ci"]
+                upper_ci = self.data[task_name][metric]["upper_ci"]
+                confidence_level = self.data[task_name][metric]["confidence_level"]
+                stat_caption += f"{self._metrics[metric][2]}: {value:.2f}$_{{{lower_ci:.2f}}}^{{{upper_ci:.2f}}}$\n"
+            stat_caption += '\n'
+        stat_caption += f"Confidence level: {confidence_level} \n"
         return stat_caption
