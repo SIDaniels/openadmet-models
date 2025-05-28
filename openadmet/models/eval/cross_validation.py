@@ -209,7 +209,7 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
 
         stat_caption += f'## {task_name} ##\n'
         for metric in self.metric_names:
-            value = self.data[task_name][metric]["value"]
+            value = self.data[task_name][metric]["mean"]
             lower_ci = self.data[task_name][metric]["lower_ci"]
             upper_ci = self.data[task_name][metric]["upper_ci"]
             confidence_level = self.data[task_name][metric]["confidence_level"]
