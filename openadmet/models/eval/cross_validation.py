@@ -87,9 +87,12 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
         model=None,
         X_train=None,
         y_train=None,
+        X_train_raw=None,
+        y_train_raw=None,
         y_pred=None,
         y_true=None,
         tag=None,
+        target_labels=None,
         **kwargs,
     ):
         """
@@ -102,6 +105,8 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
             or y_pred is None
             or y_true is None
             or tag is None
+            or X_train_raw is None
+            or y_train_raw is None
         ):
             raise ValueError(
                 "model, X_train, y_train, y_pred, y_true, and tag must be provided"
@@ -111,6 +116,17 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
         self.sklearn_metrics = {k: v[0] for k, v in self._metrics.items()}
 
         logger.info("Starting cross-validation")
+
+        n_tasks = 1
+        if target_labels is None:
+            target_labels = [f'task_{i}' for i in range(n_tasks)]
+            
+
+        if len(target_labels) != n_tasks:
+            raise ValueError(
+                f"Number of target labels ({len(target_labels)}) must match number of tasks ({n_tasks})"
+            )
+        
 
         # run CV
         cv = RepeatedKFold(
@@ -139,21 +155,25 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
         exclude = ["fit_time", "score_time"]
 
         self.data = {"shape": [self.n_splits, self.n_repeats], "tag": tag}
-        for k, v in clean_scores.items() if k not in exclude else {}:
-            # calculate the confidence interval, assuming normal distribution
-            # TODO: check best practice???
-            mean = v.mean()
-            sigma = v.std(ddof=1)
-            lower_ci, upper_ci = norm.interval(
-                self.confidence_level, loc=mean, scale=sigma
-            )
-            metric_data = {}
-            metric_data["value"] = v.tolist()
-            metric_data["mean"] = np.mean(v)
-            metric_data["lower_ci"] = lower_ci
-            metric_data["upper_ci"] = upper_ci
-            metric_data["confidence_level"] = self.confidence_level
-            self.data[k] = metric_data
+
+        for task_id in range(n_tasks):
+            t_label = target_labels[task_id]
+            self.data[t_label] = {}
+            for k, v in clean_scores.items() if k not in exclude else {}:
+                # calculate the confidence interval, assuming normal distribution
+                # TODO: check best practice???
+                mean = v.mean()
+                sigma = v.std(ddof=1)
+                lower_ci, upper_ci = norm.interval(
+                    self.confidence_level, loc=mean, scale=sigma
+                )
+                metric_data = {}
+                metric_data["value"] = v.tolist()
+                metric_data["mean"] = np.mean(v)
+                metric_data["lower_ci"] = lower_ci
+                metric_data["upper_ci"] = upper_ci
+                metric_data["confidence_level"] = self.confidence_level
+                self.data[t_label][k] = metric_data
 
         self._evaluated = True
 
@@ -163,7 +183,7 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
 
         self.plot_data = {}
 
-        stat_caption = self.make_stat_caption()
+        stat_caption = self.make_stat_caption(t_label)
 
         # create the plots
         for plot_tag, plot in self.plots.items():
@@ -172,7 +192,7 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
                 y_pred,
                 xlabel=self.axes_labels[0],
                 ylabel=self.axes_labels[1],
-                title=self.title,
+                title=f"{self.title}\nTask: {t_label}",
                 stat_caption=stat_caption,
                 pXC50=self.pXC50,
                 min_val=self.min_val,
@@ -182,19 +202,25 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
         return self.data
 
 
-    def make_stat_caption(self):
+    def make_stat_caption(self, task_name):
         """
         Make a caption for the statistics
         """
+        print("Making stat caption")
         if not self._evaluated:
             raise ValueError("Must evaluate before making a caption")
         stat_caption = ""
+
+
+        stat_caption += f'## {task_name} ##\n'
         for metric in self.metric_names:
-            value = self.data[metric]["mean"]
-            lower_ci = self.data[metric]["lower_ci"]
-            upper_ci = self.data[metric]["upper_ci"]
+            value = self.data[task_name][metric]["value"]
+            lower_ci = self.data[task_name][metric]["lower_ci"]
+            upper_ci = self.data[task_name][metric]["upper_ci"]
+            confidence_level = self.data[task_name][metric]["confidence_level"]
             stat_caption += f"{self._metrics[metric][2]}: {value:.2f}$_{{{lower_ci:.2f}}}^{{{upper_ci:.2f}}}$\n"
-        stat_caption += f"Confidence level: {self.confidence_level}"
+            stat_caption += '\n'
+        stat_caption += f"Confidence level: {confidence_level} \n"
         return stat_caption
 
     def report(self, write=False, output_dir=None):
@@ -443,17 +469,18 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             t_true, t_pred = mask_nans(t_true, t_pred)
             t_label = target_labels[task_id]
 
-            # stat_caption = self.make_stat_caption()
+            stat_caption = self.make_stat_caption(t_label)
 
-        # create the plots
+            # create the plots
             for plot_tag, plot in self.plots.items():
-                self.plot_data[t_label] = plot(
+                plot_tag_task = f"{plot_tag}_{t_label}"
+                self.plot_data[plot_tag_task] = plot(
                     t_true,
                     t_pred,
                     xlabel=self.axes_labels[0],
                     ylabel=self.axes_labels[1],
-                    title=f'{self.title}: {t_label}',
-                    stat_caption="",
+                    title=f"{self.title}\nTask: {t_label}",
+                    stat_caption=stat_caption,
                     pXC50=self.pXC50,
                     min_val=self.min_val,
                     max_val=self.max_val,
@@ -485,16 +512,15 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
         Write the evaluation report
         """
         # write to JSON
-        for task_name, v in self.data.items():
-            with open(output_dir / f"cross_validation_metrics_{task_name}.json", "w") as f:
-                json.dump(v, f, indent=2)
+        with open(output_dir / f"cross_validation_metrics.json", "w") as f:
+            json.dump(self.data, f, indent=2)
 
         # write each plot to a file
         for plot_tag, plot in self.plot_data.items():
             plot.savefig(output_dir / f"{plot_tag}.png", dpi=900)
 
 
-    def make_stat_caption(self):
+    def make_stat_caption(self, task_name):
         """
         Make a caption for the statistics
         """
@@ -503,17 +529,14 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             raise ValueError("Must evaluate before making a caption")
         stat_caption = ""
 
-        for task_name in self.task_names:
-            if task_name == 'tag' or task_name == 'shape':
-                continue
 
-            stat_caption += f'## {task_name} ##\n'
-            for metric in self.metric_names:
-                value = self.data[task_name][metric]["value"]
-                lower_ci = self.data[task_name][metric]["lower_ci"]
-                upper_ci = self.data[task_name][metric]["upper_ci"]
-                confidence_level = self.data[task_name][metric]["confidence_level"]
-                stat_caption += f"{self._metrics[metric][2]}: {value:.2f}$_{{{lower_ci:.2f}}}^{{{upper_ci:.2f}}}$\n"
+        stat_caption += f'## {task_name} ##\n'
+        for metric in self.metric_names:
+            value = self.data[task_name][metric]["mean"]
+            lower_ci = self.data[task_name][metric]["lower_ci"]
+            upper_ci = self.data[task_name][metric]["upper_ci"]
+            confidence_level = self.data[task_name][metric]["confidence_level"]
+            stat_caption += f"{self._metrics[metric][2]}: {value:.2f}$_{{{lower_ci:.2f}}}^{{{upper_ci:.2f}}}$\n"
             stat_caption += '\n'
         stat_caption += f"Confidence level: {confidence_level} \n"
         return stat_caption

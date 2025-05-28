@@ -227,7 +227,7 @@ class RegressionPlots(EvalBase):
                     t_pred,
                     xlabel=self.axes_labels[0],
                     ylabel=self.axes_labels[1],
-                    title=f'{self.title}: {t_label}',
+                    title=f"{self.title}\nTask: {t_label}",
                     stat_caption=stat_caption,
                     pXC50=self.pXC50,
                     min_val=self.min_val,
@@ -292,7 +292,8 @@ class RegressionPlots(EvalBase):
             )
         ax.set_xlabel(xlabel, fontsize=10)
         ax.set_ylabel(ylabel, fontsize=10)
-        ax.text(0.05, 0.7, stat_caption, transform=ax.transAxes, fontsize=6)
+        ax.text(0.05, 0.7, stat_caption, transform=ax.transAxes, fontsize=5)
+        fig.tight_layout()
 
         return fig
 
