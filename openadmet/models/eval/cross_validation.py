@@ -115,13 +115,13 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
         n_tasks = 1
         if target_labels is None:
             target_labels = [f'task_{i}' for i in range(n_tasks)]
-            
+
 
         if len(target_labels) != n_tasks:
             raise ValueError(
                 f"Number of target labels ({len(target_labels)}) must match number of tasks ({n_tasks})"
             )
-        
+
 
         # run CV
         cv = RepeatedKFold(
@@ -455,7 +455,7 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
         self.plot_data = {}
 
 
-        # now the plots 
+        # now the plots
 
         for task_id in range(n_tasks):
             t_true = y_true[:, task_id]
