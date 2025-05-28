@@ -330,6 +330,10 @@ class AnvilWorkflow(AnvilWorkflowBase):
         else:
             model_tag = self.metadata.tag
 
+        target_labels = self.data_spec.target_cols
+
+
+
         # Set debug attribute
         self.debug = debug
 
@@ -454,6 +458,7 @@ class AnvilWorkflow(AnvilWorkflowBase):
                 X_train=X_train_feat,
                 y_train=y_train,
                 tag=model_tag,
+                target_labels=target_labels,
             )
 
             # Write evaluation report
