@@ -87,8 +87,6 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
         model=None,
         X_train=None,
         y_train=None,
-        X_train_raw=None,
-        y_train_raw=None,
         y_pred=None,
         y_true=None,
         tag=None,
@@ -104,12 +102,9 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
             or y_train is None
             or y_pred is None
             or y_true is None
-            or tag is None
-            or X_train_raw is None
-            or y_train_raw is None
         ):
             raise ValueError(
-                "model, X_train, y_train, y_pred, y_true, and tag must be provided"
+                "model, X_train, y_train, y_pred, y_true, must be provided"
             )
 
         # store the metric names and callables in dict suitable for sklearn cross_validate

@@ -6,6 +6,7 @@ import intake
 import jinja2
 import pandas as pd
 import yaml
+from loguru import logger
 from pydantic import BaseModel, model_validator
 
 
@@ -53,7 +54,10 @@ class DataSpec(BaseModel):
         elif self.resource.endswith(".csv"):
             data = intake.open_csv(self.resource).read()
 
-
+        elif self.resource.endswith(".parquet"):
+            data = intake.open_parquet(self.resource).read()
+        else:
+            raise ValueError(f"Unsupported resource type: {self.resource}")
         # now read the target columns and smiles column
         targets = data[self.target_cols]
         input = data[self.input_col]
