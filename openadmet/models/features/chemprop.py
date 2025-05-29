@@ -11,6 +11,7 @@ from openadmet.models.features.feature_base import FeaturizerBase, featurizers
 
 
 # we vendor this from chemprop so that we can pass custom samplers
+# taken directly from https://github.com/chemprop/chemprop/blob/main/chemprop/data/dataloader.py
 def _vendor_build_dataloader(
     dataset: MoleculeDataset | ReactionDataset | MulticomponentDataset,
     batch_size: int = 64,
