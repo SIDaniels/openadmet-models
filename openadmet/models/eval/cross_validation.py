@@ -381,7 +381,6 @@ class PytorchLightningRepeatedKFoldCrossValidation(CrossValidationBase):
 
             # calculate the mean and confidence interval for each metric
             # loop over tasks and calculate the statistics
-            n_tasks = y_val.shape[1]
             if not(n_tasks == y_pred_fold.shape[1]):
                 raise ValueError("y_true and y_pred must have the same number of tasks")
 
