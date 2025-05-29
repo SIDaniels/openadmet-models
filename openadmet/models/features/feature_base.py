@@ -40,7 +40,7 @@ class DeepLearningFeaturizer(FeaturizerBase):
     """
 
     @abstractmethod
-    def featurize(self, smiles: Iterable[str], y: Iterable[float] = None) -> Tuple[DataLoader, StandardScaler, Dataset]:
+    def featurize(self, smiles: Iterable[str], y: Iterable[float] = None) -> tuple[DataLoader, StandardScaler, Dataset]:
         """
         Featurize a list of SMILES strings, returns a DataLoader, StandardScaler if any scaling done by featurization and a Pytorch Dataset
         """
