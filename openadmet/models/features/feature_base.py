@@ -6,7 +6,7 @@ from class_registry import ClassRegistry, RegistryKeyError
 from molfeat.trans import MoleculeTransformer
 from pydantic import BaseModel
 from torch.utils.data import DataLoader, Dataset
-from scikit_learn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler
 from typing import Union, Tuple
 
 featurizers = ClassRegistry(unique=True)
