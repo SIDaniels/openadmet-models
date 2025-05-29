@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 from lightning import pytorch as pl
-from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger, WandbLogger
 from loguru import logger
 from pydantic import model_validator
@@ -32,7 +32,6 @@ class LightningTrainer(TrainerBase):
     _trainer: Any
     _callbacks: Any = None
 
-
     @model_validator(mode="after")
     def check_monitor_metric(self):
         """
@@ -45,12 +44,10 @@ class LightningTrainer(TrainerBase):
             )
         return self
 
-
     def prepare(self):
         """
         Build the model trainer
         """
-
 
         # Initialize logging container
         self._logger = []
@@ -58,8 +55,11 @@ class LightningTrainer(TrainerBase):
         # initialize the callbacks list
         self._callbacks = []
 
-
-        fmtstring = "best-{epoch}-{val_loss:.4f}" if self.monitor_metric == "val_loss" else "best-{epoch}-{train_loss:.4f}"
+        fmtstring = (
+            "best-{epoch}-{val_loss:.4f}"
+            if self.monitor_metric == "val_loss"
+            else "best-{epoch}-{train_loss:.4f}"
+        )
 
         # Configure checkpoint callbacks
         checkpointing = ModelCheckpoint(
@@ -95,8 +95,6 @@ class LightningTrainer(TrainerBase):
 
         # Append CSV logger
         self._logger.append(CSVLogger(self.output_dir / "logs", name="model"))
-
-
 
         # Initialize the PyTorch Lightning trainer
         self._trainer = pl.Trainer(
