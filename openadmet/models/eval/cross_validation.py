@@ -38,9 +38,7 @@ class CrossValidationBase(EvalBase):
     """
     Base class for cross-validation
     """
-    n_splits: int = 5
-    n_repeats: int = 1
-    random_state: int = 42
+
     _evaluated: bool = False
     axes_labels: list[str] = Field(
         ["Measured", "Predicted"], description="Labels for the axes"
@@ -77,6 +75,15 @@ class SKLearnRepeatedKFoldCrossValidation(CrossValidationBase):
     """
     Cross-validation evaluator for sklearn models, this is aimed at single task regression models currently
     """
+    n_splits: int = Field(
+        5, description="Number of splits for cross-validation"
+    )
+    n_repeats: int = Field(
+        5, description="Number of repeats for cross-validation"
+    )
+    random_state: int = Field(
+        42, description="Random state for reproducibility"
+    )
 
 
     def evaluate(
@@ -236,9 +243,15 @@ class SKLearnRepeatedKFoldCrossValidation(CrossValidationBase):
 
 @evaluators.register("PytorchLightningRepeatedKFoldCrossValidation")
 class PytorchLightningRepeatedKFoldCrossValidation(CrossValidationBase):
-    n_splits: int = 5
-    n_repeats: int = 1
-    random_state: int = 42
+    n_splits: int = Field(
+        5, description="Number of splits for cross-validation"
+    )
+    n_repeats: int = Field(
+        5, description="Number of repeats for cross-validation"
+    )
+    random_state: int = Field(
+        42, description="Random state for reproducibility"
+    )
     _evaluated: bool = False
     axes_labels: list[str] = Field(
         ["Measured", "Predicted"], description="Labels for the axes"
@@ -308,6 +321,7 @@ class PytorchLightningRepeatedKFoldCrossValidation(CrossValidationBase):
         self.sklearn_metrics = {k: v[0] for k, v in self._metrics.items()}
 
         # run CV
+        print(self.n_splits, self.n_repeats, self.random_state)
         cv = RepeatedKFold(
             n_splits=self.n_splits,
             n_repeats=self.n_repeats,
