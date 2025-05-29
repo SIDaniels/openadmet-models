@@ -91,7 +91,7 @@ class ChemPropFeaturizer(FeaturizerBase):
         Prepare the featurizer
         """
 
-    def featurize(self, smiles: Iterable[str], y: Iterable[Any]=None) -> Tuple[DataLoader, StandardScaler, Union[MoleculeDataset, ReactionDataset, MulticomponentDataset]]:
+    def featurize(self, smiles: Iterable[str], y: Iterable[Any]=None) -> tuple[DataLoader, StandardScaler, Union[MoleculeDataset, ReactionDataset, MulticomponentDataset]]:
         """
         Featurize a list of SMILES strings
 
