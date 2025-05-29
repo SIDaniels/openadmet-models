@@ -72,9 +72,6 @@ class CVBase(EvalBase):
         return list(self._metrics.keys())
 
 
-
-
-
 @evaluators.register("SKLearnRepeatedKFoldCrossValidation")
 class SKLearnRepeatedKFoldCrossValidation(CVBase):
     """
@@ -121,7 +118,6 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
             raise ValueError(
                 f"Number of target labels ({len(target_labels)}) must match number of tasks ({n_tasks})"
             )
-
 
         # run CV
         cv = RepeatedKFold(
@@ -206,7 +202,6 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
             raise ValueError("Must evaluate before making a caption")
         stat_caption = ""
 
-
         stat_caption += f'## {task_name} ##\n'
         for metric in self.metric_names:
             value = self.data[task_name][metric]["mean"]
@@ -237,9 +232,6 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
         # write each plot to a file
         for plot_tag, plot in self.plot_data.items():
             plot.savefig(output_dir / f"{plot_tag}.png", dpi=900)
-
-
-
 
 
 @evaluators.register("PytorchLightningRepeatedKFoldCrossValidation")
@@ -307,14 +299,10 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             raise ValueError(
                 "model, X_train, y_train, y_pred, y_true, and tag must be provided"
             )
-
-
-
         self.data = {"tag": tag}
 
         if use_wandb:
             self.use_wandb = use_wandb
-
 
         # store the metric names and callables in dict suitable for sklearn cross_validate
         self.sklearn_metrics = {k: v[0] for k, v in self._metrics.items()}
@@ -326,8 +314,6 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             random_state=self.random_state,
         )
 
-
-
         self.data = {
             "shape": [self.n_splits, self.n_repeats],
             "tag": tag,
@@ -335,11 +321,9 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
 
         self._metric_data = {}
 
-
         # cast to numpy arrays
         X_train_raw = X_train_raw.to_numpy()
         y_train_raw = y_train_raw.to_numpy()
-
 
         # prepare containers for metrics
         n_tasks = y_train_raw.shape[1]
@@ -350,7 +334,6 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             t_label = target_labels[task_id]
             self._metric_data[t_label] = defaultdict(list)
 
-
         for fold, (fold_train_ids, fold_val_ids) in enumerate(cv.split(X=X_train_raw, y=y_train_raw)):
             logger.info(f"Fold {fold}")
 
@@ -358,7 +341,6 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             y_train = y_train_raw[fold_train_ids]
             X_val = X_train_raw[fold_val_ids]
             y_val = y_train_raw[fold_val_ids]
-
 
             # print shapes of matrices
             logger.debug(f"X_train shape: {X_train.shape}")
@@ -387,7 +369,6 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
                 wandb_project=trainer.wandb_project,
             )
 
-
             # Pass model to trainer
             fold_trainer.model = fold_model
             fold_trainer.prepare()
@@ -397,9 +378,6 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
             # evaluate the model
             y_pred_fold = fold_model.predict(fold_val_dataloader, accelerator=trainer.accelerator,
             devices=trainer.devices)
-
-
-
 
             # calculate the mean and confidence interval for each metric
             # loop over tasks and calculate the statistics
@@ -420,11 +398,9 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
                     value = metric_func(t_true, t_pred)
                     self._metric_data[t_label][metric_name].append(value)
 
-
         logger.info(f"Fold {fold} complete")
 
-
-
+        # now we have the metric data for each task, calculate the mean and confidence interval
         for t_label in target_labels:
             task_data = self._metric_data[t_label]
             self.data[t_label] = {}
@@ -445,7 +421,6 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
                 metric_data["confidence_level"] = self.confidence_level
                 self.data[t_label][k] = metric_data
 
-
         self._evaluated = True
 
         self.plots = {
@@ -454,9 +429,7 @@ class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
 
         self.plot_data = {}
 
-
         # now the plots
-
         for task_id in range(n_tasks):
             t_true = y_true[:, task_id]
             t_pred = y_pred[:, task_id]
