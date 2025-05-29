@@ -34,12 +34,12 @@ def wrap_spearmanr(y_true, y_pred):
     return nan_omit_spearmanr(y_true, y_pred).correlation
 
 
-class CVBase(EvalBase):
+class CrossValidationBase(EvalBase):
     """
     Base class for cross-validation
     """
     n_splits: int = 5
-    n_repeats: int = 5
+    n_repeats: int = 1
     random_state: int = 42
     _evaluated: bool = False
     axes_labels: list[str] = Field(
@@ -73,7 +73,7 @@ class CVBase(EvalBase):
 
 
 @evaluators.register("SKLearnRepeatedKFoldCrossValidation")
-class SKLearnRepeatedKFoldCrossValidation(CVBase):
+class SKLearnRepeatedKFoldCrossValidation(CrossValidationBase):
     """
     Cross-validation evaluator for sklearn models, this is aimed at single task regression models currently
     """
@@ -235,9 +235,9 @@ class SKLearnRepeatedKFoldCrossValidation(CVBase):
 
 
 @evaluators.register("PytorchLightningRepeatedKFoldCrossValidation")
-class PytorchLightningRepeatedKFoldCrossValidation(CVBase):
+class PytorchLightningRepeatedKFoldCrossValidation(CrossValidationBase):
     n_splits: int = 5
-    n_repeats: int = 5
+    n_repeats: int = 1
     random_state: int = 42
     _evaluated: bool = False
     axes_labels: list[str] = Field(
