@@ -6,7 +6,6 @@ import intake
 import jinja2
 import pandas as pd
 import yaml
-from loguru import logger
 from pydantic import BaseModel, model_validator
 
 
@@ -54,7 +53,7 @@ class DataSpec(BaseModel):
         elif self.resource.endswith(".csv"):
             data = intake.open_csv(self.resource).read()
 
-        elif self.resource.endswith(".parquet") or self.resource.endswith(".parq") or self.resource.endswith(".pq") or self.resource.endswith(".pqt"):
+        elif any(self.resource.endswith(x) for x in [".parquet", ".pq", ".pqt"]):
             data = intake.open_parquet(self.resource).read()
         else:
             raise ValueError(f"Unsupported resource type: {self.resource}")
