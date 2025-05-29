@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from sklearn.preprocessing import StandardScaler
 from openadmet.models.features.chemprop import MoleculeDataset, ReactionDataset, MulticomponentDataset
 
-from openadmet.models.features.feature_base import FeaturizerBase, featurizers
+from openadmet.models.features.feature_base import DeepLearningFeaturizer, featurizers
 from typing import Union, Tuple
 
 
@@ -76,7 +76,7 @@ def _vendor_build_dataloader(
     )
 
 @featurizers.register("ChemPropFeaturizer")
-class ChemPropFeaturizer(FeaturizerBase):
+class ChemPropFeaturizer(DeepLearningFeaturizer):
     """
     ChemPropFeaturizer featurizer for molecules, relies on chemprop
     """
