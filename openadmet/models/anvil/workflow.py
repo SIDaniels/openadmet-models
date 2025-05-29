@@ -330,6 +330,8 @@ class AnvilWorkflow(AnvilWorkflowBase):
         else:
             model_tag = self.metadata.tag
 
+        target_labels = self.data_spec.target_cols
+
         # Set debug attribute
         self.debug = debug
 
@@ -454,6 +456,7 @@ class AnvilWorkflow(AnvilWorkflowBase):
                 X_train=X_train_feat,
                 y_train=y_train,
                 tag=model_tag,
+                target_labels=target_labels,
             )
 
             # Write evaluation report
@@ -468,13 +471,6 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
     """
 
     driver: Drivers = Drivers.PYTORCH
-
-    @model_validator(mode="after")
-    def check_for_val(self):
-        # Check that val_size is not zero
-        if self.split.val_size == 0:
-            raise ValueError("Validation set required by this workflow.")
-        return self
 
     def run(
         self, output_dir: PathLike = "anvil_run", debug: bool = False, tag: str = None
@@ -558,23 +554,32 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
         # Save splits to CSV outputs
         X_train.to_csv(data_dir / "X_train.csv", index=False)
-        X_val.to_csv(data_dir / "X_val.csv", index=False)
+        if X_val is not None:
+            X_val.to_csv(data_dir / "X_val.csv", index=False)
         X_test.to_csv(data_dir / "X_test.csv", index=False)
         y_train.to_csv(data_dir / "y_train.csv", index=False)
-        y_val.to_csv(data_dir / "y_val.csv", index=False)
+        if y_val is not None:
+            y_val.to_csv(data_dir / "y_val.csv", index=False)
         y_test.to_csv(data_dir / "y_test.csv", index=False)
 
         logger.info("Data split")
 
         # Featurize splits
         logger.info("Featurizing data")
-        train_dataloader, train_scaler = self.feat.featurize(X_train, y_train)
+        train_dataloader, train_scaler, train_dataset = self.feat.featurize(
+            X_train, y_train
+        )
         torch.save(train_dataloader, output_dir / "train_dataloader.pth")
 
-        val_dataloader, _ = self.feat.featurize(X_val, y_val)
-        torch.save(val_dataloader, output_dir / "val_dataloader.pth")
+        if X_val is not None and y_val is not None:
+            val_dataloader, _, val_dataset = self.feat.featurize(X_val, y_val)
+            torch.save(val_dataloader, output_dir / "val_dataloader.pth")
+        else:
+            val_dataloader = None
+            val_dataset = None
+            logger.warning("Validation set is None, skipping validation dataloader")
 
-        test_dataloader, _ = self.feat.featurize(X_test, y_test)
+        test_dataloader, _, test_dataset = self.feat.featurize(X_test, y_test)
         torch.save(test_dataloader, output_dir / "test_dataloader.pth")
         logger.info("Data featurized")
 
@@ -614,6 +619,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             accelerator=self.trainer.accelerator,
             devices=self.trainer.devices,
         )
+
         logger.info("Predictions made")
 
         # Run evaluation on train/test
@@ -631,6 +637,10 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                 model=self.model,
                 X_train=train_dataloader,
                 y_train=train_dataloader,
+                X_train_raw=X_train,
+                y_train_raw=y_train,
+                featurizer=self.feat,
+                trainer=self.trainer,
                 use_wandb=use_wandb,
                 tag=model_tag,
                 target_labels=target_labels,
