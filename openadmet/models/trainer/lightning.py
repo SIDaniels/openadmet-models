@@ -25,6 +25,7 @@ class LightningTrainer(TrainerBase):
     early_stopping: bool = False
     early_stopping_patience: int = 10
     early_stopping_mode: str = "min"
+    early_stopping_min_delta: float = 0.001
     monitor_metric: str = "val_loss"
 
     wandb_logger: Any = None
@@ -77,6 +78,7 @@ class LightningTrainer(TrainerBase):
 
             # Configure early stopping callback
             early_stopping_callback = EarlyStopping(
+                min_delta=self.early_stopping_min_delta,  # Minimum change in the monitored quantity to qualify as an improvement
                 monitor=self.monitor_metric,  # Monitor validation loss for early stopping
                 patience=self.early_stopping_patience,  # Number of epochs with no improvement after which training will be stopped
                 mode=self.early_stopping_mode,  # Stop when validation loss stops decreasing
