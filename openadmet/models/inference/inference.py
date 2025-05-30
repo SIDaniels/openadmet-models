@@ -24,10 +24,18 @@ def predict(
     logger.info(f"Output path: {output_path}")
     logger.info(f"Input column: {input_col}")
     # load input data
-    if input_path.endswith(".csv"):
-        data = pd.read_csv(input_path)
-    elif input_path.endswith(".sdf"):
-        data = PandasTools.LoadSDF(input_path, smilesName=input_col)
+    if isinstance(input_path, pd.DataFrame):
+        data = input_path
+
+    elif isinstance(input_path, Path) or isinstance(input_path, str):
+        if input_path.endswith(".csv"):
+            data = pd.read_csv(input_path)
+        elif input_path.endswith(".sdf"):
+            data = PandasTools.LoadSDF(input_path, smilesName=input_col)
+    else:
+        raise ValueError(
+            "Input path must be a pandas DataFrame, a CSV file, or an SDF file"
+        )
 
     if input_col not in data.columns:
         raise ValueError(f"Column {input_col} not found in input data")
