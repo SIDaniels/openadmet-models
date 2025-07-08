@@ -1,7 +1,9 @@
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import json
 from pingouin import plot_paired
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -62,27 +64,40 @@ class PostHocComparison(ComparisonBase):
     def stats_names(self):
         return self._stats_names
 
-    def compare(self, model_stats_fns, model_tags, report=False, output_dir=None):
+    def compare(self, model_stats_fns, model_tags, task_tags=['task_0'], report=False, output_dir=None):
         """
-        Compare the model statistics from cross validation json files.
+        Perform post-hoc statistical comparison of model performance metrics.
+
+        This method loads cross-validation statistics from multiple models, performs Levene's test for equal variances,
+        Tukey's HSD for pairwise comparisons, and generates various plots and reports. Optionally, results can be saved
+        to disk.
 
         Parameters
         ----------
-        model_stats_fns : list of str
-            List of file paths to JSON files with model statistics.
+        model_stats_fns : list of str or Path
+            List of file paths to JSON files containing cross-validation metrics for each model.
         model_tags : list of str
-            List of tags for the models, used for plotting and reporting.
+            List of model names or tags corresponding to each file in `model_stats_fns`.
+        task_tags : list of str, optional
+            List of task names from multi-task models.  List should be the same
+                length as model tags, this assumes that we take one task for comparison from
+                each cross_validation_metrics.json  Default is ['task_0'].
         report : bool, optional
-            Whether to write a report. Default is False.
-        output_dir : str, optional
-            Directory to save the report and plots. Default is None.
+            If True, generates and saves a PDF report of the statistical analysis. Default is False.
+        output_dir : str or Path, optional
+            Directory to save output files
 
         Returns
         -------
         stats_dfs : list of pandas.DataFrame
-            List containing the results of Levene's test and Tukey's HSD test.
+            List of DataFrames containing the results of Levene's test and Tukey's HSD test.
+
         """
-        df = self.json_to_df(model_stats_fns, model_tags)
+        df = self.json_to_df(model_stats_fns, model_tags, task_tags)
+
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
         stats_dfs = []
         stats_dfs.append(self.levene_test(df, model_tags))
         stats_dfs.append(self.get_tukeys_df(df, model_tags))
@@ -103,7 +118,7 @@ class PostHocComparison(ComparisonBase):
 
         return stats_dfs
 
-    def json_to_df(self, model_stats_fns, model_tags):
+    def json_to_df(self, model_stats_fns, model_tags, task_tags):
         """
         Convert model statistics from cross-validation JSON files into a DataFrame.
 
@@ -120,11 +135,16 @@ class PostHocComparison(ComparisonBase):
             DataFrame containing the extracted statistics for each model.
         """
         df = pd.DataFrame()
-        for model, tag in zip(model_stats_fns, model_tags):
-            data = pd.read_json(model)
+        for model, tag, task in zip(model_stats_fns, model_tags, task_tags):
+            with open(model) as f:
+                data = json.load(f)
             method_data = pd.DataFrame()
             for m in self.metrics:
-                values = data[m].value
+                if task not in data:
+                    raise ValueError(f"Task {task} not found in data.")
+                if m not in data[task]:
+                    raise ValueError(f"Metric {m} not found in task {task} data.")
+                values = data[task][m]["value"]
                 method_data[m] = values
             method_data["method"] = tag
             df = pd.concat([df, method_data])
@@ -182,7 +202,7 @@ class PostHocComparison(ComparisonBase):
         plt.tight_layout()
 
         if output_dir:
-            plt.savefig(f"{output_dir}/normality_plot.pdf")
+            plt.savefig(f"{output_dir}/normality_plots.pdf")
 
         return fig
 
