@@ -17,8 +17,9 @@ from openadmet.models.comparison.posthoc import PostHocComparison
     multiple=True,
 )
 @click.option(
-    "--taskname",
+    "--task-name",
     help="Task names as they appear in the model stats JSON",
+    required=True,
     multiple=True,
 )
 @click.option(
