@@ -30,7 +30,7 @@ class DataSpec(BaseModel):
             return [v]
         else:
             return v
-        
+
     @field_validator("target_err_cols", mode="before")
     @classmethod
     def check_target_err_cols_input(cls, v):
@@ -40,7 +40,7 @@ class DataSpec(BaseModel):
             return [v]
         else:
             return v
-        
+
     # check that target_err_cols and target_cols are the same length if target_err_cols is not None
     @model_validator(mode="after")
     def check_target_err_cols_length(self):
@@ -91,7 +91,7 @@ class DataSpec(BaseModel):
             targets_err = data[self.target_err_cols]
         else:
             targets_err = None
-        
+
         return input, targets, targets_err
 
     @property

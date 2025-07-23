@@ -53,6 +53,6 @@ class SplitterBase(BaseModel, ABC):
         Returns
         -------
         tuple
-            A tuple containing the train, validation, and test sets for features and targets. 
+            A tuple containing the train, validation, and test sets for features and targets.
         """
         pass

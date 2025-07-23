@@ -47,7 +47,7 @@ class ShuffleSplitter(SplitterBase):
             train_size=None,
             test_size=int(self.test_size * X.shape[0]),
             random_state=self.random_state,
-            
+
         )
 
         # No validation set requested, return train(+val) and test sets
