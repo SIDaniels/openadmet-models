@@ -20,10 +20,10 @@ def get_eval_class(eval_type):
 
 def mask_nans(y_true: np.ndarray, y_pred: np.ndarray):
     """
-    Remove any pairs where either y_true or y_pred is NaN.
+    Remove any pairs where either y_true OR y_pred is NaN also returns the indices of the valid pairs
     """
     mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
-    return y_true[mask], y_pred[mask]
+    return y_true[mask], y_pred[mask], mask
 
 
 class EvalBase(BaseModel):

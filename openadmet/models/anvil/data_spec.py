@@ -17,6 +17,7 @@ class DataSpec(BaseModel):
     resource: str
     cat_entry: Optional[str] = None
     target_cols: Union[str, list[str]]
+    target_err_cols: Optional[Union[str, list[str]]] = None
     input_col: str
     anvil_dir: Optional[str] = None
 
@@ -29,6 +30,23 @@ class DataSpec(BaseModel):
             return [v]
         else:
             return v
+        
+    @field_validator("target_err_cols", mode="before")
+    @classmethod
+    def check_target_err_cols_input(cls, v):
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [v]
+        else:
+            return v
+        
+    # check that target_err_cols and target_cols are the same length if target_err_cols is not None
+    @model_validator(mode="after")
+    def check_target_err_cols_length(self):
+        if self.target_err_cols is not None and len(self.target_err_cols) != len(self.target_cols):
+            raise ValueError("target_err_cols must be the same length as target_cols")
+        return self
 
     # validator to template the resource with ANVIL_DIR if present
     @model_validator(mode="after")

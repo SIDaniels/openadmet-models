@@ -39,6 +39,7 @@ class RegressionMetrics(EvalBase):
         self,
         y_true=None,
         y_pred=None,
+        y_true_err=None,
         use_wandb=False,
         tag=None,
         target_labels=None,
@@ -62,6 +63,10 @@ class RegressionMetrics(EvalBase):
         n_tasks = y_true.shape[1]
         if not (n_tasks == y_pred.shape[1]):
             raise ValueError("y_true and y_pred must have the same number of tasks")
+        
+        if y_true_err and not (n_tasks == y_true_err.shape[1]):
+            raise ValueError("y_true and y_true_err must have the same number of tasks")
+
         if target_labels is None:
             target_labels = [f"task_{i}" for i in range(n_tasks)]
 
@@ -73,8 +78,19 @@ class RegressionMetrics(EvalBase):
         for task_id in range(n_tasks):
             t_true = y_true[:, task_id]
             t_pred = y_pred[:, task_id]
+
             # remove Nan values
-            t_true, t_pred = mask_nans(t_true, t_pred)
+            t_true, t_pred, nan_mask = mask_nans(t_true, t_pred)
+
+            # if y_true_err is provided, filter it with the nan_mask
+            # this is to ensure that the error values correspond to the non-NaN true values
+            # nothing done with t_true_err yet, but it is here for future use
+            if y_true_err is not None:
+                t_true_err = y_true_err[:, task_id]
+                t_true_err = t_true_err[nan_mask]
+            else:
+                t_true_err = None
+
             t_label = target_labels[task_id]
 
             self.data[t_label] = {}
@@ -201,7 +217,7 @@ class RegressionPlots(EvalBase):
     dpi: int = Field(300, description="DPI for the plot")
 
     def evaluate(
-        self, y_true=None, y_pred=None, use_wandb=False, target_labels=None, **kwargs
+        self, y_true=None, y_true_err=None, y_pred=None, use_wandb=False, target_labels=None,  **kwargs
     ):
         """
         Evaluate the regression model
@@ -224,6 +240,10 @@ class RegressionPlots(EvalBase):
         n_tasks = y_true.shape[1]
         if not (n_tasks == y_pred.shape[1]):
             raise ValueError("y_true and y_pred must have the same number of tasks")
+
+        if y_true_err is not None  and not (n_tasks == y_true_err.shape[1]):
+            raise ValueError("y_true and y_true_err must have the same number of tasks")
+        
         if target_labels is None:
             target_labels = [f"task_{i}" for i in range(n_tasks)]
 
@@ -237,8 +257,19 @@ class RegressionPlots(EvalBase):
         for task_id in range(n_tasks):
             t_true = y_true[:, task_id]
             t_pred = y_pred[:, task_id]
+
             # remove Nan values
-            t_true, t_pred = mask_nans(t_true, t_pred)
+            t_true, t_pred, nan_mask = mask_nans(t_true, t_pred)
+
+            # if y_true_err is provided, filter it with the nan_mask
+            # will give to plot below
+            if y_true_err is not None:
+                t_true_err = y_true_err[:, task_id]
+                t_true_err = t_true_err[nan_mask]
+            else:
+                t_true_err = None
+
+
             t_label = target_labels[task_id]
 
             if self.do_stats:
@@ -260,6 +291,7 @@ class RegressionPlots(EvalBase):
                     self.plot_data[f"{t_label}_{plot_tag}"] = plot(
                         t_true,
                         t_pred,
+                        t_true_err,
                         xlabel=self.axes_labels[0],
                         ylabel=self.axes_labels[1],
                         title=f"{self.title}\nTask: {t_label}",
@@ -274,6 +306,7 @@ class RegressionPlots(EvalBase):
     def regplot(
         y_true,
         y_pred,
+        y_true_err=None,
         xlabel="Measured",
         ylabel="Predicted",
         title="",
@@ -309,6 +342,24 @@ class RegressionPlots(EvalBase):
             scatter_kws={"alpha":0.3},
             color="teal",
             height=10)
+
+        # Plot y_true error bars
+        if y_true_err is not None:
+            y_true_flat = np.ravel(y_true)
+            y_pred_flat = np.ravel(y_pred)
+            y_true_err_flat = np.ravel(y_true_err)
+
+            g.ax_joint.errorbar(
+                y_true_flat,
+                y_pred_flat,
+                xerr=y_true_err_flat,
+                fmt='none',
+                ecolor='gray',
+                elinewidth=1,
+                alpha=0.5,
+                capsize=2,
+            )
+
 
         g.figure.suptitle(title, fontsize=title_font)
         g.ax_joint.set_aspect("equal", "box")

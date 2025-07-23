@@ -9,7 +9,7 @@ class ShuffleSplitter(SplitterBase):
     Vanilla splitter, uses sklearn's train_test_split which wraps ShuffleSplit
     """
 
-    def split(self, X, y):
+    def split(self, X, y, y_err=None):
         """
         Split the data
         """

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-
+from typing import Optional
 from class_registry import ClassRegistry, RegistryKeyError
 from pydantic import BaseModel, model_validator
 
@@ -38,6 +38,21 @@ class SplitterBase(BaseModel, ABC):
         return self
 
     @abstractmethod
-    def split(self, X: Iterable, Y: Iterable) -> tuple[Iterable, Iterable]:
-        """ """
+    def split(self, X: Iterable, Y: Iterable, y_err: Optional[Iterable]=None) -> tuple:
+        """
+        Split the data into train, validation, and test sets
+
+        Parameters
+        ----------
+        X : Iterable
+            Features to split
+        Y : Iterable
+            Targets to split
+        y_err : Optional[Iterable]
+            Optional errors for targets to split
+        Returns
+        -------
+        tuple
+            A tuple containing the train, validation, and test sets for features and targets. 
+        """
         pass
