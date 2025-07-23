@@ -86,7 +86,13 @@ class DataSpec(BaseModel):
         targets = data[self.target_cols]
         input = data[self.input_col]
 
-        return input, targets
+        if self.target_err_cols:
+            # if target_err_cols is provided, read those as well
+            targets_err = data[self.target_err_cols]
+        else:
+            targets_err = None
+        
+        return input, targets, targets_err
 
     @property
     def catalog(self):

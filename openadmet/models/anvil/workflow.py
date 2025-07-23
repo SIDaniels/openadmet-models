@@ -452,7 +452,7 @@ class AnvilWorkflow(AnvilWorkflowBase):
             eval.evaluate(
                 y_true=y_test,
                 y_pred=y_pred,
-                y_true_err=None,
+                y_true_err=y_test_err,
                 model=self.model,
                 X_train=X_train_feat,
                 y_train=y_train,
@@ -538,7 +538,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
         # Load data from YAML specification
         logger.info("Loading data")
-        X, y = self.data_spec.read()
+        X, y, y_err = self.data_spec.read()
         logger.info("Data loaded")
 
         # Transform data
@@ -551,7 +551,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
         # Split data into train, validation, and test sets
         logger.info("Splitting data")
-        X_train, X_val, X_test, y_train, y_val, y_test = self.split.split(X, y)
+        X_train, X_val, X_test, y_train, y_val, y_test, y_train_err, y_val_err, y_test_err = self.split.split(X, y, y_err=y_err)
 
         # Save splits to CSV outputs
         X_train.to_csv(data_dir / "X_train.csv", index=False)
@@ -636,7 +636,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             eval.evaluate(
                 y_true=y_test,
                 y_pred=y_pred,
-                y_true_err=None,
+                y_true_err=y_test_err,
                 model=self.model,
                 X_train=train_dataloader,
                 y_train=train_dataloader,

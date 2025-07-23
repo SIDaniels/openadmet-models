@@ -11,7 +11,20 @@ class ShuffleSplitter(SplitterBase):
 
     def split(self, X, y, y_err=None):
         """
-        Split the data
+        Split the data into train, validation, and test sets
+
+        Parameters
+        ----------
+        X : Iterable
+            Features to split
+        y : Iterable
+            Targets to split
+        y_err : Optional[Iterable]
+            Optional errors for targets to split
+        Returns
+        -------
+        tuple
+            A tuple containing the train, validation, and test sets for features and targets.
         """
 
         # No test set requested
@@ -30,9 +43,11 @@ class ShuffleSplitter(SplitterBase):
         X_train_val, X_test, y_train_val, y_test = train_test_split(
             X,
             y,
+            y_err if y_err is not None else None,
             train_size=None,
             test_size=int(self.test_size * X.shape[0]),
             random_state=self.random_state,
+            
         )
 
         # No validation set requested, return train(+val) and test sets
