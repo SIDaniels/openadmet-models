@@ -22,7 +22,7 @@ dependencies:
   - molfeat
   - mordredcommunity
   - numpy
-  - pandas
+  - pandas <= 2.2
   - pingouin
   - pip
   - python >= 3.12
