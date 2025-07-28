@@ -7,7 +7,7 @@ openadmet-models
 [![Documentation Status](https://readthedocs.org/projects/openadmet-models/badge/?version=latest)](https://openadmet-models.readthedocs.io/en/latest/?badge=latest)
 
 
-[OpenADMET](https://openadmet.org/) implementations of machine learning architectures used in the OpenADMET project within a consistent framework for rapid development and prototyping of ML models for ADMET.
+Implementations of machine learning architectures used in the OpenADMET project within a consistent framework for rapid development and prototyping of ML models for ADMET
 
 
 ## Examples
