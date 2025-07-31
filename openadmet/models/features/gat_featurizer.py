@@ -2,6 +2,7 @@ from typing import Optional, List, Any
 from collections.abc import Iterable
 import torch
 import numpy as np
+import pandas as pd
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from loguru import logger
@@ -20,7 +21,7 @@ class GATGraphFeaturizer(FeaturizerBase):
     shuffle: bool = True
     num_workers: int = 0
 
-    def _featurize_single_molecule(self, smiles: str, y_val: Optional[float] = None) -> Optional[Data]:
+    def _featurize_single_molecule(self, smiles: str, y_val: Optional[np.ndarray] = None) -> Optional[Data]:
         """
         Converts a single SMILES string to a PyTorch Geometric Data object.
         """
@@ -75,17 +76,17 @@ class GATGraphFeaturizer(FeaturizerBase):
         data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
 
         if y_val is not None:
-            data.y = torch.tensor([y_val], dtype=torch.float)
+            data.y = torch.tensor(y_val, dtype=torch.float)
 
         return data
 
-    def featurize(self, smiles: Iterable[str], y: Optional[Iterable[Any]] = None) -> tuple:
+    def featurize(self, smiles: Iterable[str], y: Optional[pd.DataFrame] = None) -> tuple:
         """
         Featurize a list of SMILES strings into a PyTorch Geometric DataLoader.
 
         Args:
             smiles: An iterable of SMILES strings.
-            y: Optional iterable of target values. Values will be attempted to be cast to float.
+            y: Optional pandas DataFrame of target values.
 
         Returns:
             Tuple of (DataLoader, indices, None, List[Data]). The DataLoader for training,
@@ -95,41 +96,16 @@ class GATGraphFeaturizer(FeaturizerBase):
 
         data_objects = []
         successful_indices = []
-
-        # Handle different types of y input no changing data_spec.py, making it more robust
-        if y is not None:
-            # If y is a pandas DataFrame, extract values from the first column
-            if hasattr(y, 'values') and hasattr(y, 'iloc'):  # DataFrame check
-                y = y.iloc[:, 0].tolist()  # Take first column and convert to list
-            # If y is a pandas Series or other iterable, convert to list
-            else:
-                y = list(y)
-        else:
-            y = None
+        y_values = y.values if y is not None else None
 
         for i, smi in enumerate(smiles):
-            y_val = None
-            if y is not None and i < len(y):
-                try:
-                    # Handle string representations of lists like '[5.1]'
-                    target_str = str(y[i])
-                    if target_str.startswith('[') and target_str.endswith(']'):
-                        # Remove brackets and try to convert
-                        target_str = target_str.strip('[]')
-                    y_val = float(target_str)
-                except (ValueError, TypeError):
-                    logger.warning(
-                        f"Could not convert target value '{y[i]}' to float for SMILES '{smi}' at index {i}. "
-                        "This target will be skipped."
-                    )
-                    # Continue processing but y_val remains None
-
+            y_val = y_values[i] if y_values is not None else None
             data = self._featurize_single_molecule(smi, y_val)
             if data is not None:
                 data_objects.append(data)
                 successful_indices.append(i)
 
-            # Drop last batch of size 1 to avoid issues with batch normalization
+        # Drop last batch of size 1 to avoid issues with batch normalization
         if len(data_objects) % self.batch_size == 1:
             drop_last = True
         else:

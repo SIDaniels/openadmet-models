@@ -1,0 +1,83 @@
+metadata:
+  version: v1
+  driver: pytorch
+  name: gat-multitask-sparse-regression
+  build_number: 1
+  description: A GAT model for sparse multitask regression
+  tag: gat-v2-regression
+  authors: Yuzhi Xu
+  email: yuzhixuchem@gmail.com
+  biotargets:
+  - task_1
+  - task_2
+  - task_3
+  - task_4
+  - task_5
+  - task_6
+  - task_7
+  - task_8
+  - task_9
+  - task_10
+  tags:
+  - GAT
+  - multitask
+  - sparse
+  - regression
+data:
+  type: intake
+  resource: openadmet/models/tests/unit/test_data/multitask_sparse_data.csv
+  input_col: smiles
+  target_cols:
+  - task_1
+  - task_2
+  - task_3
+  - task_4
+  - task_5
+  - task_6
+  - task_7
+  - task_8
+  - task_9
+  - task_10
+  dropna: false
+procedure:
+  split:
+    type: ShuffleSplitter
+    params:
+      train_size: 0.8
+      val_size: 0.1
+      test_size: 0.1
+      shuffle: true
+  feat:
+    type: GATGraphFeaturizer
+    params: {}
+  model:
+    type: GATv2Model
+    params:
+      input_dim: 8
+      edge_dim: 4
+      hidden_dim: 64
+      num_layers: 4
+      num_heads: 8
+      gat_dropout: 0.1
+      pooling: mean
+      output_dim: 10
+  train:
+    type: LightningTrainer
+    params:
+      max_epochs: 3
+      accelerator: cpu
+      devices: 1
+      use_wandb: false
+      early_stopping: true
+      early_stopping_patience: 5
+      loss_function: mse
+      scheduler: reduce_on_plateau
+      scheduler_factor: 0.3
+      scheduler_patience: 15
+report:
+  eval:
+  - type: RegressionMetrics
+    params:
+      bootstrap_confidence_level: 0.95
+  - type: RegressionPlots
+    params: {}

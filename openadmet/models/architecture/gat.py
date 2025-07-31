@@ -243,12 +243,26 @@ class GATv2Module(LightningModuleBase):
         target = batch.y
         pred = self.forward(batch)
 
-        if pred.ndim > 1 and pred.shape[1] == 1:
-            pred = pred.squeeze(-1)
-        if target.ndim > 1 and target.shape[1] == 1:
-            target = target.squeeze(-1)
+        if self.output_dim == 1:
+            if pred.ndim > 1 and pred.shape[1] == 1:
+                pred = pred.squeeze(-1)
+            if target.ndim > 1 and target.shape[1] == 1:
+                target = target.squeeze(-1)
+        
+        # Create a mask to handle NaN values
+        mask = ~torch.isnan(target)
+        
+        # Apply the mask to predictions and targets
+        # Flatten both pred and the mask to ensure they are 1D and compatible.
+        mask = ~torch.isnan(target)
+        pred_masked = pred.flatten()[mask.flatten()]
+        target_masked = target.flatten()[mask.flatten()]
 
-        loss = _METRIC_TO_LOSS[self.loss_function](pred, target)
+        if pred_masked.numel() == 0:
+            # If no valid targets in the batch, return 0 loss
+            loss = torch.tensor(0.0, device=pred.device, requires_grad=True)
+        else:
+            loss = _METRIC_TO_LOSS[self.loss_function](pred_masked, target_masked)
 
         self.log(
             "train_loss",
@@ -264,15 +278,32 @@ class GATv2Module(LightningModuleBase):
     def validation_step(self, batch: Batch, batch_idx: int):
         """Validation step"""
         target = batch.y
-
         pred = self.forward(batch)
+        
+        logger.debug(f"Validation Step - Batch {batch_idx}")
+        logger.debug(f"  - pred shape: {pred.shape}")
+        logger.debug(f"  - target shape: {target.shape}")
 
-        if pred.ndim > 1 and pred.shape[1] == 1:
-            pred = pred.squeeze(-1)
-        if target.ndim > 1 and target.shape[1] == 1:
-            target = target.squeeze(-1)
+        if self.output_dim == 1:
+            if pred.ndim > 1 and pred.shape[1] == 1:
+                pred = pred.squeeze(-1)
+            if target.ndim > 1 and target.shape[1] == 1:
+                target = target.squeeze(-1)
+        
+        # Create a mask to handle NaN values
+        mask = ~torch.isnan(target)
+        
+        # Apply the mask to predictions and targets
+        # Flatten both pred and the mask to ensure they are 1D and compatible.
+        mask = ~torch.isnan(target)
+        pred_masked = pred.flatten()[mask.flatten()]
+        target_masked = target.flatten()[mask.flatten()]
 
-        loss = _METRIC_TO_LOSS[self.loss_function](pred, target)
+        if pred_masked.numel() == 0:
+            # If no valid targets in the batch, return 0 loss
+            loss = torch.tensor(0.0, device=pred.device, requires_grad=True)
+        else:
+            loss = _METRIC_TO_LOSS[self.loss_function](pred_masked, target_masked)
 
         self.log(
             "val_loss",
