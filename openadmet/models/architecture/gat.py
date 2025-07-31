@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from loguru import logger
+import lightning.pytorch as pl
 from pydantic import field_validator
 from torch_geometric.data import Batch
 from torch_geometric.nn import (
@@ -413,32 +414,15 @@ class GATv2Model(LightningModelBase):
                 "Model has not been built yet. Call `build` before `predict`."
             )
 
-        # Set model to evaluation mode
-        self.estimator.eval()
-
-        # Determine device
-        if accelerator == "gpu" and torch.cuda.is_available():
-            device = torch.device("cuda")
-        elif accelerator == "mps" and torch.backends.mps.is_available():
-            device = torch.device("mps")
-        else:
-            device = torch.device("cpu")
-
-        self.estimator.to(device)
-
-        predictions = []
-
-        with torch.no_grad():
-            for batch in dataloader:
-                # Move batch to device
-                batch = batch.to(device)
-
-                # Forward pass through core model
-                pred = self.estimator(batch)
-
-                # Move predictions to CPU and store
-                predictions.append(pred.cpu())
-
+        with torch.inference_mode():
+            trainer = pl.Trainer(
+                logger=None,
+                enable_progress_bar=False,
+                accelerator=accelerator,
+                devices=devices,
+            )
+            predictions = trainer.predict(self.estimator, dataloader)
+        
         # Concatenate all predictions
         y_pred = torch.cat(predictions).numpy()
 
