@@ -413,7 +413,7 @@ class GATv2Model(LightningModelBase):
             raise RuntimeError(
                 "Model has not been built yet. Call `build` before `predict`."
             )
-
+        #already remove the device selection
         with torch.inference_mode():
             trainer = pl.Trainer(
                 logger=None,
