@@ -8,16 +8,10 @@ metadata:
   authors: Yuzhi Xu
   email: yuzhixuchem@gmail.com
   biotargets:
-  - task_1
-  - task_2
-  - task_3
-  - task_4
-  - task_5
-  - task_6
-  - task_7
-  - task_8
-  - task_9
-  - task_10
+  - cyp3a4_pchembl_value_mean
+  - cyp2c9_pchembl_value_mean
+  - cyp2d6_pchembl_value_mean
+  - cyp1a2_pchembl_value_mean
   tags:
   - GAT
   - multitask
@@ -25,19 +19,13 @@ metadata:
   - regression
 data:
   type: intake
-  resource: openadmet/models/tests/unit/test_data/multitask_sparse_data.csv
-  input_col: smiles
+  resource: openadmet/models/tests/unit/test_data/multitask_gat.csv
+  input_col: OPENADMET_SMILES
   target_cols:
-  - task_1
-  - task_2
-  - task_3
-  - task_4
-  - task_5
-  - task_6
-  - task_7
-  - task_8
-  - task_9
-  - task_10
+  - cyp3a4_pchembl_value_mean
+  - cyp2c9_pchembl_value_mean
+  - cyp2d6_pchembl_value_mean
+  - cyp1a2_pchembl_value_mean
   dropna: false
 procedure:
   split:
@@ -60,11 +48,11 @@ procedure:
       num_heads: 8
       gat_dropout: 0.1
       pooling: mean
-      output_dim: 10
+      output_dim: 4
   train:
     type: LightningTrainer
     params:
-      max_epochs: 3
+      max_epochs: 100
       accelerator: cpu
       devices: 1
       use_wandb: false
