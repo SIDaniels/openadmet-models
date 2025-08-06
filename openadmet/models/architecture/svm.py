@@ -54,7 +54,7 @@ class SVMModelBase(PickleableModelBase):
         Prepare the model
         """
         if not self.estimator:
-            self.estimator = self.mod_class(**self.mod_params, n_jobs=-1)
+            self.estimator = self.mod_class(**self.mod_params)
         else:
             logger.warning("Model already exists, skipping build")
 
