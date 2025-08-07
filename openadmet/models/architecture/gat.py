@@ -252,8 +252,6 @@ class GATv2Module(LightningModuleBase):
         mask = ~torch.isnan(target)
         
         # Apply the mask to predictions and targets
-        # Flatten both pred and the mask to ensure they are 1D and compatible.
-        mask = ~torch.isnan(target)
         pred_masked = pred.flatten()[mask.flatten()]
         target_masked = target.flatten()[mask.flatten()]
 
@@ -293,8 +291,6 @@ class GATv2Module(LightningModuleBase):
         mask = ~torch.isnan(target)
         
         # Apply the mask to predictions and targets
-        # Flatten both pred and the mask to ensure they are 1D and compatible.
-        mask = ~torch.isnan(target)
         pred_masked = pred.flatten()[mask.flatten()]
         target_masked = target.flatten()[mask.flatten()]
 

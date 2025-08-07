@@ -94,6 +94,9 @@ class GATGraphFeaturizer(FeaturizerBase):
             Invalid SMILES or problematic molecules will be skipped (a warning will be logged).
         """
 
+        if y is not None and not isinstance(y, pd.DataFrame):
+            raise TypeError(f"Expected y to be a pandas DataFrame or None, but got {type(y).__name__}.")
+
         data_objects = []
         successful_indices = []
         y_values = y.values if y is not None else None
