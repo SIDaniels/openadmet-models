@@ -13,6 +13,8 @@ import yaml
 import zarr
 from loguru import logger
 from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import field_validator
+from typing import Optional
 
 from openadmet.models.anvil.data_spec import DataSpec
 from openadmet.models.architecture.model_base import ModelBase, get_mod_class
@@ -21,6 +23,7 @@ from openadmet.models.features.feature_base import FeaturizerBase, get_featurize
 from openadmet.models.registries import *  # noqa: F401, F403
 from openadmet.models.split.split_base import SplitterBase, get_splitter_class
 from openadmet.models.trainer.trainer_base import TrainerBase, get_trainer_class
+from openadmet.models.transforms.transform_base import TransformBase, get_transform_class
 
 _SECTION_CLASS_GETTERS = {
     "feat": get_featurizer_class,
@@ -28,6 +31,7 @@ _SECTION_CLASS_GETTERS = {
     "split": get_splitter_class,
     "eval": get_eval_class,
     "train": get_trainer_class,
+    "transform": get_transform_class,
     "INVALID": lambda x: None,
 }
 
@@ -155,6 +159,15 @@ class EvalSpec(AnvilSection):
     section_name: ClassVar[str] = "eval"
 
 
+class TransformSpec(AnvilSection):
+    """
+    Transform specification.
+    """
+
+    section_name: ClassVar[str] = "transform"
+
+
+
 class ProcedureSpec(SpecBase):
     """
     Procedure specification.
@@ -166,6 +179,7 @@ class ProcedureSpec(SpecBase):
     feat: FeatureSpec
     model: ModelSpec
     train: TrainerSpec
+    transform: Optional[TransformSpec]  = None  # Optional transform step
 
 
 class ReportSpec(SpecBase):
@@ -272,7 +286,7 @@ class AnvilSpecification(BaseModel):
             metadata=self.metadata,
             data_spec=self.data,
             model=self.procedure.model.to_class(),
-            transform=None,
+            transform=self.procedure.transform.to_class() if self.procedure.transform else None,
             split=self.procedure.split.to_class(),
             feat=self.procedure.feat.to_class(),
             trainer=self.procedure.train.to_class(),
@@ -288,7 +302,7 @@ class AnvilWorkflowBase(BaseModel):
 
     metadata: Metadata
     data_spec: DataSpec
-    transform: Any
+    transform: Optional[TransformBase] = None  # Optional transform step
     split: SplitterBase
     feat: FeaturizerBase
     model: ModelBase
@@ -389,13 +403,7 @@ class AnvilWorkflow(AnvilWorkflowBase):
         X, y = self.data_spec.read()
         logger.info("Data loaded")
 
-        # Transform data
-        logger.info("Transforming data")
-        if self.transform:
-            X = self.transform.transform(X)
-            logger.info("Data transformed")
-        else:
-            logger.info("No transform specified, skipping")
+
 
         # Split data into train, validation, and test sets
         logger.info("Splitting data")
@@ -416,6 +424,15 @@ class AnvilWorkflow(AnvilWorkflowBase):
 
         X_test_feat, _ = self.feat.featurize(X_test)
         zarr.save(data_dir / "X_test_feat.zarr", X_test_feat)
+
+        if self.transform:
+            X_train_feat = self.transform.transform(X_train_feat)
+            X_test_feat = self.transform.transform(X_test_feat)
+            zarr.save(data_dir / "X_train_feat_transformed.zarr", X_train_feat)
+            zarr.save(data_dir / "X_test_feat_transformed.zarr", X_test_feat)
+            logger.info("Data transformed")
+        else:
+            logger.info("No transform specified, skipping")
 
         logger.info("Data featurized")
 
@@ -476,6 +493,17 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
     """
 
     driver: Drivers = Drivers.PYTORCH
+
+
+    @model_validator(mode="after")
+    def check_no_transform(self):
+        # Check that transform is not set
+        if self.transform is not None:
+            raise ValueError(
+                "Transform step is not supported in this workflow. Please remove it from the recipe."
+            )
+        return self
+
 
     def run(
         self,
@@ -548,13 +576,6 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         X, y = self.data_spec.read()
         logger.info("Data loaded")
 
-        # Transform data
-        logger.info("Transforming data")
-        if self.transform:
-            X = self.transform.transform(X)
-            logger.info("Data transformed")
-        else:
-            logger.info("No transform specified, skipping")
 
         # Split data into train, validation, and test sets
         logger.info("Splitting data")
