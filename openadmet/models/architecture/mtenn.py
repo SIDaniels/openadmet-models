@@ -5,18 +5,21 @@ from lightning import pytorch as pl
 from loguru import logger
 from mtenn.config import SchNetModelConfig
 
-from openadmet.models.architecture.model_base import TorchModelBase
+from openadmet.models.architecture.model_base import LightningModelBase
 from openadmet.models.architecture.model_base import models as model_registry
 
 
-class MTENNLightningWrapper(pl.LightningModule):
+# TODO: Inherit from LightningModuleBase to expose more configurability
+class MTENNLightningModule(pl.LightningModule):
     def __init__(
-        self, model_config: SchNetModelConfig, loss_fn=torch.nn.MSELoss(), lr=1e-4
+        self, model_config: SchNetModelConfig, loss_fn=torch.nn.MSELoss(), lr=1e-4, monitor_metric: str = "val_loss"
     ):
         super().__init__()
         self.model = model_config.build()
         self.loss_fn = loss_fn
         self.lr = lr
+        self.monitor_metric = monitor_metric
+
 
     def forward(self, data):
         for k, v in data.items():
@@ -47,7 +50,7 @@ class MTENNLightningWrapper(pl.LightningModule):
 
 
 @model_registry.register("MTENNSchNetModel")
-class MTENNSchNetModel(TorchModelBase):
+class MTENNSchNetModel(LightningModelBase):
     """
     MTENN SchNet Model Implementation
     """
@@ -61,7 +64,7 @@ class MTENNSchNetModel(TorchModelBase):
         """
         if not self.estimator:
             model_config = SchNetModelConfig(**self.mod_params)
-            self.estimator = MTENNLightningWrapper(model_config)
+            self.estimator = MTENNLightningModule(model_config)
         else:
             logger.warning("Model already exists, skipping build.")
 
@@ -92,3 +95,10 @@ class MTENNSchNetModel(TorchModelBase):
             )
             preds = trainer.predict(self.estimator, dataloader)
         return torch.cat(preds, dim=0).numpy()
+
+
+    def make_new(self) -> "MTENNSchNetModel":
+        """
+        Copy parameters to a new model instance without copying the estimator
+        """
+        return self.__class__(**self.mod_params, **self.dict(exclude={"estimator"}))

@@ -4,6 +4,7 @@ channels:
   - defaults
 dependencies:
   - ase
+  - catboost
   - chemprop >= 2.1.1
   - codecov
   - datamol
@@ -41,7 +42,7 @@ dependencies:
   - seaborn
   - splito
   - statsmodels
-  - tabpfn
+  # - tabpfn
   - tabulate
   - umap-learn
   - wandb
@@ -53,3 +54,4 @@ dependencies:
     - phx-class-registry
     - tabpfn-extensions
     - unimol_tools
+    - git+https://github.com/PriorLabs/TabPFN.git@main
