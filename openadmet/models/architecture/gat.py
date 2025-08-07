@@ -247,10 +247,10 @@ class GATv2Module(LightningModuleBase):
                 pred = pred.squeeze(-1)
             if target.ndim > 1 and target.shape[1] == 1:
                 target = target.squeeze(-1)
-        
+
         # Create a mask to handle NaN values
         mask = ~torch.isnan(target)
-        
+
         # Apply the mask to predictions and targets
         pred_masked = pred.flatten()[mask.flatten()]
         target_masked = target.flatten()[mask.flatten()]
@@ -276,7 +276,7 @@ class GATv2Module(LightningModuleBase):
         """Validation step"""
         target = batch.y
         pred = self.forward(batch)
-        
+
         logger.debug(f"Validation Step - Batch {batch_idx}")
         logger.debug(f"  - pred shape: {pred.shape}")
         logger.debug(f"  - target shape: {target.shape}")
@@ -286,10 +286,10 @@ class GATv2Module(LightningModuleBase):
                 pred = pred.squeeze(-1)
             if target.ndim > 1 and target.shape[1] == 1:
                 target = target.squeeze(-1)
-        
+
         # Create a mask to handle NaN values
         mask = ~torch.isnan(target)
-        
+
         # Apply the mask to predictions and targets
         pred_masked = pred.flatten()[mask.flatten()]
         target_masked = target.flatten()[mask.flatten()]
