@@ -49,7 +49,7 @@ jobs:
       # More info on options: https://github.com/marketplace/actions/setup-micromamba
       - uses: mamba-org/setup-micromamba@v1
         with:
-          environment-file: devtools/conda-envs/openadmet-models.yaml
+          environment-file: devtools/conda-envs/openadmet-models-gpu.yaml
           environment-name: openadmet-models
           condarc: |
             channels:
