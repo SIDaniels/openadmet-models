@@ -1,0 +1,45 @@
+metadata:
+  version: "v1"
+  driver: "pytorch"
+  name: "unimol-cyp3a4-regression"
+  build_number: 1
+  description: "A UniMol model for CYP3A4 pChEMBL value regression"
+  tag: "unimol-v1-regression"
+  authors: "Yuzhi Xu"
+  email: "yuzhixuchem@gmail.com"
+  biotargets: ["CYP3A4"]
+  tags: ["UniMol", "CYP3A4", "regression"]
+
+data:
+  type: "intake"
+  resource: openadmet/models/tests/test_data/CYP3A4_chembl_pchembl.csv
+  input_col: CANONICAL_SMILES
+  target_cols:
+    - pChEMBL mean
+
+procedure:
+  split:
+    type: "ShuffleSplitter"
+    params:
+      train_size: 0.8
+      val_size: 0.1
+      test_size: 0.1
+      shuffle: True
+
+  model:
+    type: UniMolWrapper
+    params:
+      task: 'regression'
+      data_type: 'molecule'
+      epochs: 10
+      batch_size: 16
+      metrics: 'r2'
+      model_name: 'unimolv1'
+
+report:
+  eval:
+    - type: RegressionMetrics
+      params:
+        bootstrap_confidence_level: 0.95
+    - type: RegressionPlots
+      params: {}

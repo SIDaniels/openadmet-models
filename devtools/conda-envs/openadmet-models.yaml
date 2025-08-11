@@ -51,6 +51,7 @@ dependencies:
   - pip:
     - email-validator
     - git+https://github.com/OpenADMET/mtenn.git@remove_dgl
+    - unimol_tools
     - phx-class-registry
     - tabpfn-extensions
     - unimol_tools
