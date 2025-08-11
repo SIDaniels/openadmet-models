@@ -9,7 +9,7 @@ Successfully integrated UniMol models into the OpenADMET framework, now availabl
 ### 1. Core Model Implementation
 - **File**: `openadmet/models/architecture/unimol.py`
 - **Class**: `UniMolModel`
-- **Features**: 
+- **Features**:
   - Direct wrapper for `unimol_tools.MolTrain` and `MolPredict`
   - Support for classification and regression tasks
   - Support for all UniMol v1 and v2 model sizes
@@ -35,7 +35,7 @@ Successfully integrated UniMol models into the OpenADMET framework, now availabl
 # Classification task
 openadmet anvil --recipe-path openadmet/models/tests/unit/test_data/basic_anvil_unimol.yaml
 
-# Regression task  
+# Regression task
 openadmet anvil --recipe-path openadmet/models/tests/unit/test_data/basic_anvil_unimol_regression.yaml
 ```
 

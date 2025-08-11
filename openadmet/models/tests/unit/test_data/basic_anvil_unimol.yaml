@@ -29,4 +29,3 @@ procedure:
       model_name: "unimolv1"  # unimolv1 or unimolv2
       model_size: "84m"       # 84m, 164m, 310m, 570m, 1.1B (for unimolv2)
       remove_hs: false
-

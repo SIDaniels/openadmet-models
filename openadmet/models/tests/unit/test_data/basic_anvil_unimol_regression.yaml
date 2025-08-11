@@ -29,5 +29,3 @@ procedure:
       model_name: "unimolv1"
       model_size: "84m"
       remove_hs: false
-
-
