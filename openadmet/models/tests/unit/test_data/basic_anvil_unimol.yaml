@@ -1,45 +1,32 @@
 metadata:
   version: "v1"
   driver: "pytorch"
-  name: "unimol-cyp3a4-regression"
+  name: "unimol-cyp3a4-classification"
   build_number: 1
-  description: "A UniMol model for CYP3A4 pChEMBL value regression"
-  tag: "unimol-v1-regression"
+  description: "A UniMol model for CYP3A4 classification"
+  tag: "unimol-v1-classification"
   authors: "Yuzhi Xu"
   email: "yuzhixuchem@gmail.com"
   biotargets: ["CYP3A4"]
-  tags: ["UniMol", "CYP3A4", "regression"]
+  tags: ["UniMol", "CYP3A4", "classification"]
 
 data:
   type: "intake"
-  resource: openadmet/models/tests/test_data/CYP3A4_chembl_pchembl.csv
+  resource: openadmet/models/tests/unit/test_data/CYP3A4_chembl_pchembl.csv
   input_col: CANONICAL_SMILES
   target_cols:
-    - pChEMBL mean
+    - active
 
 procedure:
-  split:
-    type: "ShuffleSplitter"
-    params:
-      train_size: 0.8
-      val_size: 0.1
-      test_size: 0.1
-      shuffle: True
-
   model:
-    type: UniMolWrapper
+    type: UniMolModel
     params:
-      task: 'regression'
-      data_type: 'molecule'
+      task: "classification"
+      data_type: "molecule"
       epochs: 10
       batch_size: 16
-      metrics: 'r2'
-      model_name: 'unimolv1'
+      metrics: "auc"
+      model_name: "unimolv1"  # unimolv1 or unimolv2
+      model_size: "84m"       # 84m, 164m, 310m, 570m, 1.1B (for unimolv2)
+      remove_hs: false
 
-report:
-  eval:
-    - type: RegressionMetrics
-      params:
-        bootstrap_confidence_level: 0.95
-    - type: RegressionPlots
-      params: {}
