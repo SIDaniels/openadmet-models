@@ -1,7 +1,10 @@
 from os import PathLike
-from typing import ClassVar
+from typing import Any, ClassVar
 
+import joblib
 import numpy as np
+import uncertainty_toolbox as uct
+from loguru import logger
 
 from openadmet.models.active_learning.acquisition import _QUERY_STRATEGIES
 from openadmet.models.active_learning.ensemble_base import EnsembleBase, ensemblers
@@ -11,6 +14,25 @@ from openadmet.models.architecture.model_base import ModelBase
 @ensemblers.register("CommitteeRegressor")
 class CommitteeRegressor(EnsembleBase):
     type: ClassVar[str] = "CommitteeRegressor"
+    _calibration_model: Any = None
+    _calibration_methods: dict = {
+        "isotonic-regression": "_isotonic_regression_calibration",
+        "scaling-factor": "_scaling_factor_calibration",
+    }
+
+    @property
+    def calibrated(self):
+        """
+        Check if the committee regressor has a calibration model.
+
+        Returns
+        -------
+        bool
+            True if the committee regressor has a calibration model, False otherwise.
+
+        """
+
+        return self._calibration_model is not None
 
     @classmethod
     def from_models(cls, models: list = []):
@@ -24,10 +46,183 @@ class CommitteeRegressor(EnsembleBase):
 
         """
 
+        # Initialize class from model list
         instance = cls(
             models=models,
         )
+
         return instance
+
+    def _isotonic_regression_calibration(self, X, y, **kwargs):
+        """
+        Configure uncertainty calibration using isotonic regression.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            The input validation set samples to calibrate.
+        y : array-like of shape (n_samples, n_features)
+            The target validation set values.
+        **kwargs : dict
+            Additional keyword arguments to be passed to the committee's predict method.
+
+        Returns
+        -------
+        None
+
+        """
+
+        # Reset calibration model
+        self._calibration_model = None
+
+        # Predict on recalibration (validation) set
+        y_pred_mean, y_pred_std = self._predict(X, return_std=True, **kwargs)
+
+        # Fit a separate isotonic regression model for each target dimension
+        calibration_models = []
+        for i in range(y.shape[-1]):
+            # Get the predictive uncertainties in terms of expected proportions and
+            # observed proportions on the recalibration set
+            y_exp_props, y_obs_props = (
+                uct.metrics_calibration.get_proportion_lists_vectorized(
+                    y_pred_mean[:, i], y_pred_std[:, i], y[:, i]
+                )
+            )
+
+            # Train a recalibration model
+            iso_model = uct.recalibration.iso_recal(y_exp_props, y_obs_props).predict
+
+            # Append to per-dimension list
+            calibration_models.append(iso_model)
+
+        # Create per-dimension calibration model
+        self._calibration_model = {"isotonic-regression": calibration_models}
+
+    def _scaling_factor_calibration(self, X, y, **kwargs):
+        """
+        Configure uncertainty calibration using scaling factor.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            The input validation set samples to calibrate.
+        y : array-like of shape (n_samples, n_features)
+            The target validation set values.
+        **kwargs : dict
+            Additional keyword arguments to be passed to the committee's predict method.
+
+        Returns
+        -------
+        None
+
+        """
+
+        # Reset calibration model
+        self._calibration_model = None
+
+        # Predict on recalibration (validation) set
+        y_pred_mean, y_pred_std = self._predict(X, return_std=True, **kwargs)
+
+        # Fit a separate scaling factor for each target dimension
+        calibration_models = []
+        for i in range(y.shape[-1]):
+            # Determine scale factor
+            scale_factor = uct.recalibration.optimize_recalibration_ratio(
+                y_pred_mean[:, i], y_pred_std[:, i], y[:, i], criterion="miscal"
+            )
+
+            calibration_models.append(scale_factor)
+
+        self._calibration_model = {"scaling-factor": calibration_models}
+
+    def calibrate_uncertainty(self, X, y, method="isotonic-regression", **kwargs):
+        """
+        Configure uncertainty calibration using selected method.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            The input validation set samples to calibrate.
+        y : array-like of shape (n_samples, n_features)
+            The target validation set values.
+        method : str
+            The calibration method to use. Options are "isotonic-regression" or "scaling-factor".
+        **kwargs : dict
+            Additional keyword arguments to be passed to the committee's predict method.
+
+        Returns
+        -------
+        None
+
+        """
+
+        # Validate method selection
+        if method not in self._calibration_methods:
+            raise ValueError(
+                f"Invalid calibration method: {method}. "
+                f"Valid options are: {self._calibration_methods.keys()}"
+            )
+
+        getattr(self, self._calibration_methods[method])(X, y, **kwargs)
+
+    def _get_calibration_function(self):
+        if "scaling-factor" in self._calibration_model:
+            # Create per-dimension calibration model
+            return lambda x: np.stack(
+                [
+                    self._calibration_model["scaling-factor"][i] * (x[:, i])
+                    for i in range(x.shape[-1])
+                ],
+                axis=1,
+            )
+
+        elif "isotonic-regression" in self._calibration_model:
+            # Create per-dimension calibration model
+            return lambda x: np.stack(
+                [
+                    self._calibration_model["isotonic-regression"][i](x[:, i])
+                    for i in range(x.shape[-1])
+                ],
+                axis=1,
+            )
+
+    def plot_uncertainty_calibration(self, X, y, **kwargs):
+        """
+        Plot uncertainty calibration for the committee model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            The input test set samples to calibrate.
+        y : array-like of shape (n_samples, n_features)
+            The target test set values.
+        **kwargs : dict
+            Additional keyword arguments to be passed to the committee's predict method.
+
+        Returns
+        -------
+        list
+            A list of plots for each target dimension.
+
+        """
+
+        # Predict on recalibration (validation) set
+        y_pred_mean, y_pred_std = self.predict(X, return_std=True, **kwargs)
+
+        # Plot calibration
+        plots = []
+        for i in range(y.shape[-1]):
+            plots.append(
+                uct.viz.plot_calibration(
+                    y_pred_mean.flatten(), y_pred_std.flatten(), y[:, i].flatten()
+                )
+            )
+
+        # If only one plot is generated, return it directly
+        if len(plots) == 1:
+            return plots[0]
+
+        return plots
 
     @classmethod
     def train(
@@ -71,7 +266,7 @@ class CommitteeRegressor(EnsembleBase):
         models = []
         for i in range(n_models):
             # Initialize model
-            model = mod_class(**mod_params)
+            model = mod_class.from_params(mod_params=mod_params)
 
             # Bootstrap the data
             bootstrap_idx = np.random.choice(X.shape[0], size=X.shape[0], replace=True)
@@ -103,6 +298,7 @@ class CommitteeRegressor(EnsembleBase):
         np.array
             Values of the query strategy applied to the input data `X`.
         """
+
         if query_strategy.lower() not in _QUERY_STRATEGIES:
             raise ValueError(
                 f"Invalid query strategy: {query_strategy}. "
@@ -111,7 +307,7 @@ class CommitteeRegressor(EnsembleBase):
 
         return _QUERY_STRATEGIES[query_strategy](self, X, **kwargs)
 
-    def predict(self, X, return_std=False, **kwargs):
+    def _predict(self, X, return_std=False, **kwargs):
         """
         Make predictions using the committee model.
 
@@ -119,6 +315,8 @@ class CommitteeRegressor(EnsembleBase):
         ----------
         X : array-like of shape (n_samples, n_features)
             The input samples to predict.
+        return_std : bool, optional
+            Whether to return the standard deviation of the predictions.
         **kwargs : dict
             Additional keyword arguments to pass to the committee's predict method.
 
@@ -128,15 +326,65 @@ class CommitteeRegressor(EnsembleBase):
             Predicted values or probabilities, depending on the committee's implementation.
         """
 
+        # Make predictions
         preds = np.stack([model.predict(X, **kwargs) for model in self.models], axis=-1)
+
+        # Compute mean
         mean = np.mean(preds, axis=-1)
+
+        # Skip std if not requested
+        if return_std is False:
+            return mean
+
+        # Compute standard deviation
         std = np.std(preds, axis=-1)
 
-        if return_std is True:
-            return mean, std
+        # Calibrate std if calibration model is available
+        if self.calibrated:
+            std = self._get_calibration_function()(std)
 
-        else:
-            return mean
+        return mean, std
+
+    def predict(self, X, return_std=False, **kwargs):
+        """
+        Make predictions using the committee model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            The input samples to predict.
+        return_std : bool, optional
+            Whether to return the standard deviation of the predictions.
+        **kwargs : dict
+            Additional keyword arguments to pass to the committee's predict method.
+
+        Returns
+        -------
+        array-like
+            Predicted values or probabilities, depending on the committee's implementation.
+
+        """
+
+        if return_std is True and not self.calibrated:
+            logger.warning(
+                "Standard deviation not calibrated: consider calling `calibrate_uncertainty` method."
+            )
+
+        return self._predict(X, return_std=return_std, **kwargs)
+
+    def _save_calibration_model(self, path: PathLike = "calibration_model.pkl"):
+        # Save calibration model
+        if self.calibrated:
+            with open(path, "wb") as f:
+                joblib.dump(self._calibration_model, f)
+
+    def _load_calibration_model(self, path: PathLike = "calibration_model.pkl"):
+        # Load calibration model
+        if path.exists():
+            with open(path, "rb") as f:
+                self._calibration_model = joblib.load(f)
+
+            logger.info(f"Successfully loaded calibration from {path}")
 
     def save(self, paths: list[PathLike]):
         """
@@ -162,6 +410,9 @@ class CommitteeRegressor(EnsembleBase):
         # Save each model to the provided paths
         for model, path in zip(self.models, paths):
             model.save(path)
+
+        # Save calibration model
+        self._save_calibration_model(paths[0].parent / "calibration_model.pkl")
 
     @classmethod
     def load(cls, paths: list[PathLike], models: list[ModelBase] = None):
@@ -194,7 +445,12 @@ class CommitteeRegressor(EnsembleBase):
         [model.load(path) for model, path in zip(models, paths)]
 
         # Create a CommitteeRegressor instance from the loaded models
-        return cls.from_models(models)
+        instance = cls.from_models(models)
+
+        # Load calibration model
+        instance._load_calibration_model(paths[0].parent / "calibration_model.pkl")
+
+        return instance
 
     def serialize(self, param_paths: list[PathLike], serial_paths: list[PathLike]):
         """
@@ -228,6 +484,9 @@ class CommitteeRegressor(EnsembleBase):
             self.models, param_paths, serial_paths
         ):
             model.serialize(param_path, serial_path)
+
+        # Save calibration model
+        self._save_calibration_model(param_paths[0].parent / "calibration_model.pkl")
 
     @classmethod
     def deserialize(
@@ -269,4 +528,11 @@ class CommitteeRegressor(EnsembleBase):
             models.append(mod_class.deserialize(param_path, serial_path))
 
         # Create a CommitteeRegressor instance from the deserialized models
-        return cls.from_models(models)
+        instance = cls.from_models(models)
+
+        # Load calibration model
+        instance._load_calibration_model(
+            param_paths[0].parent / "calibration_model.pkl"
+        )
+
+        return instance
