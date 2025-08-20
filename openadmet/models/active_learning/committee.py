@@ -3,6 +3,7 @@ from typing import Any, ClassVar
 
 import joblib
 import numpy as np
+import pandas as pd
 import uncertainty_toolbox as uct
 from loguru import logger
 
@@ -75,6 +76,9 @@ class CommitteeRegressor(EnsembleBase):
         # Reset calibration model
         self._calibration_model = None
 
+        if isinstance(y, (pd.Series, pd.DataFrame)):
+            y = y.to_numpy()
+
         # Predict on recalibration (validation) set
         y_pred_mean, y_pred_std = self._predict(X, return_std=True, **kwargs)
 
@@ -119,6 +123,9 @@ class CommitteeRegressor(EnsembleBase):
 
         # Reset calibration model
         self._calibration_model = None
+
+        if isinstance(y, (pd.Series, pd.DataFrame)):
+            y = y.to_numpy()
 
         # Predict on recalibration (validation) set
         y_pred_mean, y_pred_std = self._predict(X, return_std=True, **kwargs)
@@ -205,6 +212,9 @@ class CommitteeRegressor(EnsembleBase):
             A list of plots for each target dimension.
 
         """
+
+        if isinstance(y, (pd.Series, pd.DataFrame)):
+            y = y.to_numpy()
 
         # Predict on recalibration (validation) set
         y_pred_mean, y_pred_std = self.predict(X, return_std=True, **kwargs)
@@ -402,9 +412,9 @@ class CommitteeRegressor(EnsembleBase):
         """
 
         # Check number of paths match
-        if len(self.models) != len(paths):
+        if self.n_models != len(paths):
             raise ValueError(
-                "Number of models in the committee does not match the number of paths."
+                f"Number of models ({self.n_models}) in the committee does not match the number of paths ({len(paths)})."
             )
 
         # Save each model to the provided paths
@@ -454,7 +464,7 @@ class CommitteeRegressor(EnsembleBase):
 
     def serialize(self, param_paths: list[PathLike], serial_paths: list[PathLike]):
         """
-        Save the model to a json file and a pickled file.
+        Save the model to json files and pickled files.
 
         Parameters
         ----------
@@ -471,12 +481,14 @@ class CommitteeRegressor(EnsembleBase):
 
         # Check number of paths match
         if len(param_paths) != len(serial_paths):
-            raise ValueError("Number of parameter files and serial files do not match.")
+            raise ValueError(
+                f"Number of parameter files ({len(param_paths)}) and serial files ({len(serial_paths)}) do not match."
+            )
 
         # Check number of models match
-        if len(self.models) != len(param_paths):
+        if self.n_models != len(param_paths):
             raise ValueError(
-                "Number of models in the committee does not match the number of parameter files."
+                f"Number of models ({self.n_models}) in the committee does not match the number of parameter files ({len(param_paths)})."
             )
 
         # Serialize each model
