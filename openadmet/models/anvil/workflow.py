@@ -13,6 +13,7 @@ from pydantic import model_validator
 
 from openadmet.models.anvil import Drivers
 from openadmet.models.anvil.workflow_base import AnvilWorkflowBase
+from openadmet.models.export import export_to_onnx_from_pytorch 
 
 
 class AnvilWorkflow(AnvilWorkflowBase):
@@ -532,6 +533,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             # Save
             logger.info("Saving model")
             self.model.serialize(output_dir / "model.json", output_dir / "model.pth")
+            export_to_onnx_from_pytorch(self.model.estimator, train_dataloader, output_dir / "model.onnx")
             logger.info("Model saved")
 
         # Predict on test set
