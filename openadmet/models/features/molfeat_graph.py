@@ -68,4 +68,4 @@ class PyGGraphFeaturizer(MolfeatFeaturizer):
         Featurize a list of SMILES strings
         """
         with dm.no_rdkit_log():
-        
+
