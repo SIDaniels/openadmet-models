@@ -111,16 +111,23 @@ class AnvilWorkflow(AnvilWorkflowBase):
 
             # Build model from scratch
             logger.info(f"Building model {i}")
-            self.model = self.model.make_new()
+            bootstrap_model = self.model.from_params(mod_params=self.model.mod_params)
             logger.info(f"Model {i} built")
 
+            # Pass model to trainer
+            logger.info(f"Setting model {i} in trainer")
+            self.trainer.model = bootstrap_model
+            logger.info(f"Model {i} set in trainer")
+
             # Train model on bootstrapped data
-            logger.info("Training model")
-            self.model = self.trainer.train(X_train_feat_bootstrap, y_train_bootstrap)
-            logger.info("Model trained")
+            logger.info(f"Training model {i}")
+            bootstrap_model = self.trainer.train(
+                X_train_feat_bootstrap, y_train_bootstrap
+            )
+            logger.info(f"Model {i} trained")
 
             # Add model to list
-            models.append(self.model)
+            models.append(bootstrap_model)
 
         # Create ensemble from trained models
         self.model = self.ensemble.from_models(models)
@@ -262,11 +269,15 @@ class AnvilWorkflow(AnvilWorkflowBase):
             logger.info("Saving model")
             self.model.serialize(
                 [
-                    output_dir / f"bootstrap_{i}" / "model.json"
+                    output_dir
+                    / f"bootstrap_{i}"
+                    / self.model.models[i]._model_json_name
                     for i in range(self.model.n_models)
                 ],
                 [
-                    output_dir / f"bootstrap_{i}" / "model.pth"
+                    output_dir
+                    / f"bootstrap_{i}"
+                    / self.model.models[i]._model_save_name
                     for i in range(self.model.n_models)
                 ],
             )
@@ -277,7 +288,10 @@ class AnvilWorkflow(AnvilWorkflowBase):
 
             # Save
             logger.info("Saving model")
-            self.model.serialize(output_dir / "model.json", output_dir / "model.pth")
+            self.model.serialize(
+                output_dir / self.model._model_json_name,
+                output_dir / self.model._model_save_name,
+            )
             logger.info("Model saved")
 
         # Predict on test set
@@ -589,11 +603,15 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             logger.info("Saving model")
             self.model.serialize(
                 [
-                    output_dir / f"bootstrap_{i}" / "model.json"
+                    output_dir
+                    / f"bootstrap_{i}"
+                    / self.model.models[i]._model_json_name
                     for i in range(self.model.n_models)
                 ],
                 [
-                    output_dir / f"bootstrap_{i}" / "model.pth"
+                    output_dir
+                    / f"bootstrap_{i}"
+                    / self.model.models[i]._model_save_name
                     for i in range(self.model.n_models)
                 ],
             )
@@ -604,7 +622,10 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
             # Save
             logger.info("Saving model")
-            self.model.serialize(output_dir / "model.json", output_dir / "model.pth")
+            self.model.serialize(
+                output_dir / self.model._model_json_name,
+                output_dir / self.model._model_save_name,
+            )
             logger.info("Model saved")
 
         # Predict on test set

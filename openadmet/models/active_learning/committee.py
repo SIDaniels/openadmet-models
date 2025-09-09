@@ -7,7 +7,7 @@ import pandas as pd
 import uncertainty_toolbox as uct
 from loguru import logger
 
-from openadmet.models.active_learning.acquisition import _QUERY_STRATEGIES
+from openadmet.models.active_learning.acquisition import _ACQUISITION_FUNCTIONS
 from openadmet.models.active_learning.ensemble_base import EnsembleBase, ensemblers
 from openadmet.models.architecture.model_base import ModelBase
 
@@ -309,15 +309,15 @@ class CommitteeRegressor(EnsembleBase):
             Values of the query strategy applied to the input data `X`.
         """
 
-        if query_strategy.lower() not in _QUERY_STRATEGIES:
+        if query_strategy.lower() not in _ACQUISITION_FUNCTIONS:
             raise ValueError(
                 f"Invalid query strategy: {query_strategy}. "
-                f"Valid options are: {list(_QUERY_STRATEGIES.keys())}"
+                f"Valid options are: {list(_ACQUISITION_FUNCTIONS.keys())}"
             )
 
         mean, std = self.predict(X, return_std=True, **kwargs)
 
-        return _QUERY_STRATEGIES[query_strategy](mean, std, **kwargs)
+        return _ACQUISITION_FUNCTIONS[query_strategy](mean, std, **kwargs)
 
     def _predict(self, X, return_std=False, **kwargs):
         """
@@ -534,7 +534,9 @@ class CommitteeRegressor(EnsembleBase):
 
         # Check lengths match
         if len(param_paths) != len(serial_paths):
-            raise ValueError("Number of parameter files and serial files do not match.")
+            raise ValueError(
+                f"Number of parameter files {len(param_paths)} and serial files {len(serial_paths)} do not match."
+            )
 
         # Deserialize each model
         models = []
