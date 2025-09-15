@@ -23,14 +23,23 @@ def _safe_to_numpy(X):
 
 
 class AnvilWorkflow(AnvilWorkflowBase):
-    """
-    Workflow for running basic Anvil configuration.
-    """
+    """Workflow for running basic Anvil configuration."""
 
     driver: Drivers = Drivers.SKLEARN
 
     @model_validator(mode="after")
     def check_if_val_needed(self):
+        """
+        Check if validation set is needed or not.
+
+        Raises
+        ------
+        ValueError
+            If ensemble is specified but no validation set is requested.
+        ValueError
+            If validation set is requested but no ensemble is specified.
+
+        """
         # Ensemble models require a validation set for uncertainty calibration
         if self.ensemble and self.split.val_size == 0:
             raise ValueError(
@@ -47,6 +56,15 @@ class AnvilWorkflow(AnvilWorkflowBase):
 
     @model_validator(mode="after")
     def check_no_finetuning(self):
+        """
+        Check that no fine-tuning paths are specified.
+
+        Raises
+        ------
+        ValueError
+            If fine-tuning paths are specified for either ensemble or single model.
+
+        """
         # Ensemble specified
         if self.ensemble:
             # Fine-tuning paths specified
@@ -140,8 +158,22 @@ class AnvilWorkflow(AnvilWorkflowBase):
     ) -> Any:
         """
         Run the workflow.
-        """
 
+        Parameters
+        ----------
+        output_dir : PathLike, optional
+            Directory to save outputs, by default "anvil_training"
+        debug : bool, optional
+            Whether to run in debug mode, by default False
+        tag : str, optional
+            Tag to override the one in the recipe, by default None
+
+        Returns
+        -------
+        Any
+            Result of the workflow run
+
+        """
         # Override the model tag from yaml if provided in cli
         if tag is not None:
             model_tag = tag
@@ -327,14 +359,21 @@ class AnvilWorkflow(AnvilWorkflowBase):
 
 
 class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
-    """
-    Workflow for running deep learning Anvil configuration.
-    """
+    """Workflow for running deep learning Anvil configuration."""
 
     driver: Drivers = Drivers.PYTORCH
 
     @model_validator(mode="after")
     def check_no_transform(self):
+        """
+        Check that no transform step is specified.
+
+        Raises
+        ------
+        ValueError
+            If a transform step is specified in the recipe.
+
+        """
         # Check that transform is not set
         if self.transform is not None:
             raise ValueError(
@@ -344,6 +383,15 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
     @model_validator(mode="after")
     def check_if_val_needed(self):
+        """
+        Check if validation set is needed or not.
+
+        Raises
+        ------
+        ValueError
+            If ensemble is specified but no validation set is requested.
+
+        """
         # Ensemble models require a validation set for uncertainty calibration
         if self.ensemble and self.split.val_size == 0:
             raise ValueError(
@@ -486,9 +534,23 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         tag: str = None,
     ) -> Any:
         """
-        Run the workflow
-        """
+        Run the workflow.
 
+        Parameters
+        ----------
+        output_dir : PathLike, optional
+            Directory to save outputs, by default "anvil_training"
+        debug : bool, optional
+            Whether to run in debug mode, by default False
+        tag : str, optional
+            Tag to override the one in the recipe, by default None
+
+        Returns
+        -------
+        Any
+            Result of the workflow run
+
+        """
         # Override the model tag from yaml if provided in cli
         if tag is not None:
             model_tag = tag
