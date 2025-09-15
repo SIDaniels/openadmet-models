@@ -162,7 +162,7 @@ class CommitteeRegressor(EnsembleBase):
         if method not in self._calibration_methods:
             raise ValueError(
                 f"Invalid calibration method: {method}. "
-                f"Valid options are: {self._calibration_methods.keys()}"
+                f"Valid options are: {self._calibration_methods.keys()}."
             )
 
         getattr(self, self._calibration_methods[method])(X, y, **kwargs)
@@ -218,7 +218,9 @@ class CommitteeRegressor(EnsembleBase):
         for i in range(y.shape[-1]):
             plots.append(
                 uct.viz.plot_calibration(
-                    y_pred_mean.flatten(), y_pred_std.flatten(), y[:, i].flatten()
+                    y_pred_mean[:, i].flatten(),
+                    y_pred_std[:, i].flatten(),
+                    y[:, i].flatten(),
                 )
             )
 

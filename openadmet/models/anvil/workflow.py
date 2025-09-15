@@ -295,7 +295,11 @@ class AnvilWorkflow(AnvilWorkflowBase):
             self._train_ensemble(X_train_feat, y_train, output_dir)
 
             # Calibrate
-            self.model.calibrate_uncertainty(X_val_feat, y_val)
+            self.model.calibrate_uncertainty(
+                X_val_feat,
+                y_val,
+                method=self.parent_spec.procedure.ensemble.calibration_method,
+            )
 
             # Save
             logger.info("Saving model")
@@ -332,10 +336,15 @@ class AnvilWorkflow(AnvilWorkflowBase):
         # Check if the model has predict_proba method (classification)
         if hasattr(self.model, "predict_proba"):
             y_pred = self.model.predict_proba(X_test_feat)
+            y_std = None
 
         # Otherwise, regression
         else:
-            y_pred = self.model.predict(X_test_feat)
+            if self.ensemble:
+                y_pred, y_std = self.model.predict(X_test_feat, return_std=True)
+            else:
+                y_pred = self.model.predict(X_test_feat)
+                y_std = None
         logger.info("Predictions made")
 
         # Run evaluation on train/test
@@ -345,6 +354,7 @@ class AnvilWorkflow(AnvilWorkflowBase):
             eval.evaluate(
                 y_true=y_test,
                 y_pred=y_pred,
+                y_std=y_std,
                 model=self.model,
                 X_train=X_train_feat,
                 y_train=y_train,
@@ -658,6 +668,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             self.model.calibrate_uncertainty(
                 val_dataloader,
                 y_val,
+                method=self.parent_spec.procedure.ensemble.calibration_method,
                 accelerator=self.trainer.accelerator,
                 devices=self.trainer.devices,
             )
@@ -694,11 +705,20 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
         # Predict on test set
         logger.info("Predicting")
-        y_pred = self.model.predict(
-            test_dataloader,
-            accelerator=self.trainer.accelerator,
-            devices=self.trainer.devices,
-        )
+        if self.ensemble:
+            y_pred, y_std = self.model.predict(
+                test_dataloader,
+                accelerator=self.trainer.accelerator,
+                devices=self.trainer.devices,
+                return_std=True,
+            )
+        else:
+            y_pred = self.model.predict(
+                test_dataloader,
+                accelerator=self.trainer.accelerator,
+                devices=self.trainer.devices,
+            )
+            y_std = None
         logger.info("Predictions made")
 
         # Run evaluation on train/test
@@ -713,6 +733,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             eval.evaluate(
                 y_true=y_test,
                 y_pred=y_pred,
+                y_std=y_std,
                 model=self.model,
                 X_train=train_dataloader,
                 y_train=train_dataloader,
