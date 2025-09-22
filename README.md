@@ -75,7 +75,7 @@ Some examples of `Anvil` specifications are provided in the Tutorials and Docume
 
 ## Authors
 
-The OpenFE development team.
+The OpenADMET development team.
 
 
 ### Copyright
