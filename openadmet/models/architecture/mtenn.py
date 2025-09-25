@@ -11,6 +11,63 @@ from openadmet.models.architecture.model_base import LightningModelBase
 from openadmet.models.architecture.model_base import models as model_registry
 
 
+def step_loss(self, pred, target, in_range=None):
+    """
+    Step loss calculation. For `in_range` < 0, loss is returned as 0 if
+    `pred` < `target`, otherwise MSE is calculated as normal. For
+    `in_range` > 0, loss is returned as 0 if `pred` > `target`, otherwise
+    MSE is calculated as normal. For `in_range` == 0, MSE is calculated as
+    normal.
+
+    Parameters
+    ----------
+    pred : torch.Tensor
+        Model prediction
+    target : torch.Tensor
+        Prediction target
+    in_range : torch.Tensor, optional
+        `target`'s presence in the dynamic range of the assay. Give a value
+        of < 0 for `target` below lower bound, > 0 for `target` above upper
+        bound, and 0 or None for inside range
+
+    Returns
+    -------
+    torch.Tensor
+        Calculated loss
+
+    """
+    # Calculate loss
+    loss = super().forward(pred, target)
+
+    # Calculate mask:
+    #  1.0 - If pred or data is semiquant and prediction is inside the
+    #    assay range
+    #  0.0 - If data is semiquant and prediction is outside the assay range
+    # r < 0 -> measurement is below thresh, want to count if pred > target
+    # r > 0 -> measurement is above thresh, want to count if pred < target
+    mask = torch.tensor(
+        [
+            1.0 if ((r == 0) or (r is None)) else ((r < 0) == (t < i))
+            for i, t, r in zip(
+                np.ravel(pred.detach().cpu()),
+                np.ravel(target.detach().cpu()),
+                np.ravel(
+                    in_range.detach().cpu()
+                    if in_range is not None
+                    else [None] * len(pred.flatten())
+                ),
+            )
+        ]
+    )
+    mask = mask.to(pred.device)
+
+    # Need to add the max in the denominator in case there are no values that we
+    #  want to calculate loss for
+    loss = (loss * mask).sum() / max(torch.sum(mask), 1)
+
+    return loss
+
+
 class MTENNLightningModule(pl.LightningModule):
     """
     PyTorch Lightning wrapper for MTENN models.
@@ -52,7 +109,7 @@ class MTENNLightningModule(pl.LightningModule):
         """
         super().__init__()
         self.model = model_config.build()
-        self.loss_fn = loss_fn
+        self.loss_fn = step_loss  # Use custom step loss function CHANGE
         self.lr = lr
         self.monitor_metric = monitor_metric
 
