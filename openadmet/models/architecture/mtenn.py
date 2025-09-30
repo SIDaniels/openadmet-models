@@ -1,7 +1,8 @@
 """MTENN model implementation."""
 
-from typing import ClassVar
+from typing import ClassVar, Optional
 
+import numpy as np
 import torch
 from lightning import pytorch as pl
 from loguru import logger
@@ -11,61 +12,107 @@ from openadmet.models.architecture.model_base import LightningModelBase
 from openadmet.models.architecture.model_base import models as model_registry
 
 
-def step_loss(self, pred, target, in_range=None):
-    """
-    Step loss calculation. For `in_range` < 0, loss is returned as 0 if
-    `pred` < `target`, otherwise MSE is calculated as normal. For
-    `in_range` > 0, loss is returned as 0 if `pred` > `target`, otherwise
-    MSE is calculated as normal. For `in_range` == 0, MSE is calculated as
-    normal.
+class MSELoss(torch.nn.MSELoss):
+    def __init__(self, loss_type=None):
+        """
+        Class for calculating MSE loss, with various options
 
-    Parameters
-    ----------
-    pred : torch.Tensor
-        Model prediction
-    target : torch.Tensor
-        Prediction target
-    in_range : torch.Tensor, optional
-        `target`'s presence in the dynamic range of the assay. Give a value
-        of < 0 for `target` below lower bound, > 0 for `target` above upper
-        bound, and 0 or None for inside range
+        Parameters
+        ----------
+        loss_type : str, optional
+            Which type of loss to use:
+             * None: vanilla MSE
+             * "step": step MSE loss
+             * "uncertainty": MSE loss with added uncertainty
 
-    Returns
-    -------
-    torch.Tensor
-        Calculated loss
+        """
+        # No reduction so we can apply whatever adjustment to each sample
+        super().__init__(reduction="none")
 
-    """
-    # Calculate loss
-    loss = super().forward(pred, target)
+        if loss_type is not None:
+            loss_type = loss_type.lower()
+            if loss_type == "step":
+                self.loss_function = self.step_loss
+            elif loss_type == "uncertainty":
+                self.loss_function = self.uncertainty_loss
+            else:
+                raise ValueError(f'Unknown loss_type "{loss_type}"')
+        else:
+            self.loss_function = super().forward
 
-    # Calculate mask:
-    #  1.0 - If pred or data is semiquant and prediction is inside the
-    #    assay range
-    #  0.0 - If data is semiquant and prediction is outside the assay range
-    # r < 0 -> measurement is below thresh, want to count if pred > target
-    # r > 0 -> measurement is above thresh, want to count if pred < target
-    mask = torch.tensor(
-        [
-            1.0 if ((r == 0) or (r is None)) else ((r < 0) == (t < i))
-            for i, t, r in zip(
-                np.ravel(pred.detach().cpu()),
-                np.ravel(target.detach().cpu()),
-                np.ravel(
-                    in_range.detach().cpu()
-                    if in_range is not None
-                    else [None] * len(pred.flatten())
-                ),
-            )
-        ]
-    )
-    mask = mask.to(pred.device)
+        self.loss_type = loss_type
 
-    # Need to add the max in the denominator in case there are no values that we
-    #  want to calculate loss for
-    loss = (loss * mask).sum() / max(torch.sum(mask), 1)
+    def forward(self, pred, pose_preds, target, in_range, uncertainty):
+        """
+        Dispatch method for calculating loss. All arguments should be passed
+        regardless of actual loss function to keep an identical signature for
+        this class. Data is passed to `self.loss_function`.
+        """
+        if self.loss_type is None:
+            # Just need to calculate mean to get MSE
+            return self.loss_function(pred, target).mean()
+        elif self.loss_type == "step":
+            # Call step_loss
+            return self.loss_function(pred, target, in_range)
+        elif self.loss_type == "uncertainty":
+            # Call uncertainty_loss
+            return self.loss_function(pred, target, uncertainty)
 
-    return loss
+    def step_loss(self, pred, target, in_range=None):
+        """
+        Step loss calculation. For `in_range` < 0, loss is returned as 0 if
+        `pred` < `target`, otherwise MSE is calculated as normal. For
+        `in_range` > 0, loss is returned as 0 if `pred` > `target`, otherwise
+        MSE is calculated as normal. For `in_range` == 0, MSE is calculated as
+        normal.
+
+        Parameters
+        ----------
+        pred : torch.Tensor
+            Model prediction
+        target : torch.Tensor
+            Prediction target
+        in_range : torch.Tensor, optional
+            `target`'s presence in the dynamic range of the assay. Give a value
+            of < 0 for `target` below lower bound, > 0 for `target` above upper
+            bound, and 0 or None for inside range
+
+        Returns
+        -------
+        torch.Tensor
+            Calculated loss
+
+        """
+        # Calculate loss
+        loss = super().forward(pred, target)
+
+        # Calculate mask:
+        #  1.0 - If pred or data is semiquant and prediction is inside the
+        #    assay range
+        #  0.0 - If data is semiquant and prediction is outside the assay range
+        # r < 0 -> measurement is below thresh, want to count if pred > target
+        # r > 0 -> measurement is above thresh, want to count if pred < target
+        mask = torch.tensor(
+            [
+                1.0 if ((r == 0) or (r is None)) else ((r < 0) == (t < i))
+                for i, t, r in zip(
+                    np.ravel(pred.detach().cpu()),
+                    np.ravel(target.detach().cpu()),
+                    np.ravel(
+                        in_range.detach().cpu()
+                        if in_range is not None
+                        else [None] * len(pred.flatten())
+                    ),
+                )
+            ]
+        )
+        mask = mask.to(pred.device)
+
+        # Need to add the max in the denominator in case there are no values that we
+        #  want to calculate loss for
+        loss = (loss * mask).sum() / max(torch.sum(mask), 1)
+
+        return loss
 
 
 class MTENNLightningModule(pl.LightningModule):
@@ -109,7 +156,7 @@ class MTENNLightningModule(pl.LightningModule):
         """
         super().__init__()
         self.model = model_config.build()
-        self.loss_fn = step_loss  # Use custom step loss function CHANGE
+        self.loss_fn = MSELoss(loss_type="step")  # Use custom step loss function CHANGE
         self.lr = lr
         self.monitor_metric = monitor_metric
 
@@ -131,6 +178,11 @@ class MTENNLightningModule(pl.LightningModule):
         for k, v in data.items():
             data[k] = v.to(self.device)
         pred, _ = self.model(data)
+
+        # Added after changing loss function
+        if pred.dim() == 1:
+            pred = pred.unsqueeze(-1)
+
         return pred
 
     def training_step(self, batch, batch_idx):
@@ -155,7 +207,9 @@ class MTENNLightningModule(pl.LightningModule):
 
         for data, target in zip(data_batch, target_batch):
             pred = self(data)
-            loss = self.loss_fn(pred, target.unsqueeze(0).to(self.device))
+            # BELOW WAS CHANGED TO HARDCODE STEP LOSS
+            # loss = self.loss_fn(pred, target.unsqueeze(0).to(self.device))
+            loss = self.loss_fn(pred, None, target.to(self.device), None, None)
             batch_loss += loss
 
         avg_loss = batch_loss / len(data_batch)
@@ -181,7 +235,7 @@ class MTENNLightningModule(pl.LightningModule):
         """
         data_batch, _ = batch
         preds = [self(data) for data in data_batch]
-        return torch.cat(preds)
+        return torch.cat(preds, dim=0)
 
     def configure_optimizers(self):
         """
@@ -244,8 +298,8 @@ class MTENNSchNetModel(LightningModelBase):
 
     # Expose Model Config params
     strategy: str = "concat"
-    pred_readout: str = None
-    weights_path: str = None
+    pred_readout: Optional[str] = None
+    weights_path: Optional[str] = None
 
     def build(self, scaler=None):
         """
