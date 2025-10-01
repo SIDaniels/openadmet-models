@@ -76,10 +76,6 @@ class ModelBase(BaseModel, ABC):
         path: PathLike
             Path to save the model to
 
-        Returns
-        -------
-        None
-
         """
         pass
 
@@ -92,10 +88,6 @@ class ModelBase(BaseModel, ABC):
         ----------
         path: PathLike
             Path to load the model from
-
-        Returns
-        -------
-        None
 
         """
         pass
@@ -112,10 +104,6 @@ class ModelBase(BaseModel, ABC):
         serial_path: PathLike
             Path to save the model serialization to
 
-        Returns
-        -------
-        None
-
         """
         pass
 
@@ -130,10 +118,6 @@ class ModelBase(BaseModel, ABC):
             Path to load the model parameters from
         serial_path: PathLike
             Path to load the model serialization from
-
-        Returns
-        -------
-        None
 
         """
         pass
@@ -151,10 +135,6 @@ class ModelBase(BaseModel, ABC):
         ----------
         input: Any
             Input data to predict on
-
-        Returns
-        -------
-        None
 
         """
         pass
@@ -186,10 +166,6 @@ class PickleableModelBase(ModelBase):
         path: PathLike
             Path to save the model to
 
-        Returns
-        -------
-        None
-
         """
         if self.estimator is None:
             raise ValueError("Model is not built, cannot save")
@@ -205,10 +181,6 @@ class PickleableModelBase(ModelBase):
         ----------
         path: PathLike
             Path to load the model from
-
-        Returns
-        -------
-        None
 
         """
         with open(path, "rb") as f:
@@ -257,10 +229,6 @@ class PickleableModelBase(ModelBase):
             Path to save the model parameters to
         serial_path: PathLike
             Path to save the pickled model to
-
-        Returns
-        -------
-        None
 
         """
         with open(param_path, "w") as f:
@@ -381,16 +349,6 @@ class LightningModuleBase(pl.LightningModule):
         else:
             return optimizer
 
-    # TODO: Implement defaults of the following?
-    # def training_step():
-    #     pass
-
-    # def validation_step():
-    #     pass
-
-    # def predict_step():
-    #     pass
-
 
 class LightningModelBase(ModelBase):
     """A model that uses PyTorch Lightning."""
@@ -406,10 +364,6 @@ class LightningModelBase(ModelBase):
         path: PathLike
             Path to save the model to
 
-        Returns
-        -------
-        None
-
         """
         torch.save(self.estimator.state_dict(), path)
 
@@ -421,10 +375,6 @@ class LightningModelBase(ModelBase):
         ----------
         path: PathLike
             Path to load the model from
-
-        Returns
-        -------
-        None
 
         """
         self.estimator.load_state_dict(torch.load(path))
@@ -441,10 +391,6 @@ class LightningModelBase(ModelBase):
             Path to save the model parameters to
         serial_path: PathLike
             Path to save the serialized model to
-
-        Returns
-        -------
-        None
 
         """
         with open(param_path, "w") as f:
