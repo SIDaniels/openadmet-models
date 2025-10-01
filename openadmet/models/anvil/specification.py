@@ -116,11 +116,6 @@ class DataSpec(BaseModel):
         targets: pd.Series
             The target data (e.g., properties to predict)
 
-        Raises
-        ------
-        ValueError
-            If the resource type is not supported
-
         """
         # if YAML, parse as intake catalog
         if self.resource.endswith(".yaml") or self.resource.endswith(".yml"):
@@ -336,11 +331,6 @@ class AnvilSection(SpecBase):
         instance : object
             An instance of the class corresponding to the section type.
 
-        Raises
-        ------
-        ValueError
-            If the section_name is invalid or the type is not recognized.
-
         """
         return _SECTION_CLASS_GETTERS[self.section_name](self.type)(**self.params)
 
@@ -369,12 +359,15 @@ class ModelSpec(AnvilSection):
         The path to the model parameters file.
     serial_path : Optional[str]
         The path to the model serialization file.
+    freeze_weights : Optional[dict]
+        A dictionary specifying which layers to freeze during training.
 
     """
 
     section_name: ClassVar[str] = "model"
     param_path: str | None = None
     serial_path: str | None = None
+    freeze_weights: dict | None = None
 
     @model_validator(mode="after")
     def check_paths(self):
@@ -385,11 +378,6 @@ class ModelSpec(AnvilSection):
         -------
         self : ModelSpec
             The validated ModelSpec instance.
-
-        Raises
-        ------
-        ValueError
-            If only one of param_path or serial_path is provided.
 
         """
         # Both specified
@@ -403,6 +391,31 @@ class ModelSpec(AnvilSection):
         raise ValueError(
             "Both `param_path` and `serial_path` must be provided together."
         )
+
+    @model_validator(mode="after")
+    def check_freeze_weights(self):
+        """
+        Ensure freeze weights is supplied for only applicable model types.
+
+        Returns
+        -------
+        self : ModelSpec
+            The validated ModelSpec instance.
+
+        """
+        # Check if weight freezing selected
+        if self.freeze_weights:
+            # Attempt freezing model weights
+            try:
+                model = self.to_class()
+                model.build()
+                model.freeze_weights()
+
+            # Raise error here if not implemented
+            except NotImplementedError:
+                raise ValueError(f"Weight freezing not implemented for {self.type}.")
+
+        return self
 
 
 class EnsembleSpec(AnvilSection):
