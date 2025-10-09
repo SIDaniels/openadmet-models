@@ -205,9 +205,9 @@ def _mtenn_collate_fn(batch):
         if "Y" in item:
             targets.append(torch.tensor(item["Y"], dtype=torch.float32))
 
-        targets = torch.stack(targets, dim=0) if targets else None
+    targets = torch.stack(targets, dim=0) if targets else None
 
-        return data_list, targets
+    return data_list, targets
 
 
 @featurizers.register("MTENNFeaturizer")
