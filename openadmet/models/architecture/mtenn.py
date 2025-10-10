@@ -1,6 +1,6 @@
 """MTENN model implementation."""
 
-from typing import ClassVar
+from typing import ClassVar, Optional
 
 import torch
 from lightning import pytorch as pl
@@ -187,8 +187,8 @@ class MTENNSchNetModel(LightningModelBase):
 
     # Expose Model Config params
     strategy: str = "concat"
-    pred_readout: str = None
-    weights_path: str = None
+    pred_readout: Optional[str] = None
+    weights_path: Optional[str] = None
 
     def build(self, scaler=None):
         """
