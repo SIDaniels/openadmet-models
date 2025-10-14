@@ -11,6 +11,8 @@ from mtenn.config import ModelConfig, SchNetRepresentationConfig
 from openadmet.models.architecture.model_base import LightningModelBase
 from openadmet.models.architecture.model_base import models as model_registry
 
+import os
+
 
 class MSELoss(torch.nn.MSELoss):
     def __init__(self, loss_type=None):
@@ -359,6 +361,9 @@ class MTENNSchNetModel(LightningModelBase):
         """
         Use the model for prediction.
 
+        WARNING: Current MTENN issue where loading a model must be done on GPU to obtain the correct weights.
+        Set env variable OADMET_ALLOW_MTENN_CPU to either 1 or True to use CPU.
+
         Parameters
         ----------
         dataloader : torch.utils.data.DataLoader
@@ -381,6 +386,13 @@ class MTENNSchNetModel(LightningModelBase):
         """
         if not self.estimator:
             raise AttributeError("Model not built or trained.")
+
+        if accelerator == "cpu" and not os.getenv(
+            "OADMET_ALLOW_MTENN_CPU", ""
+        ).lower() in {"1", "true"}:
+            raise ValueError(
+                "CPU inference currently disabled for MTENN. If you must use CPU, set env var OADMET_ALLOW_MTENN_CPU to True. GPU trained weights loaded on CPU will give incorrect predictions."
+            )
 
         with torch.inference_mode():
             trainer = pl.Trainer(
