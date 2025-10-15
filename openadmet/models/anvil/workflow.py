@@ -271,6 +271,9 @@ class AnvilWorkflow(AnvilWorkflowBase):
         X_test_feat, _ = self.feat.featurize(X_test)
         zarr.save(data_dir / "X_test_feat.zarr", X_test_feat)
 
+        # featurize whole dataset also for CV if needed
+        X_feat, _ = self.feat.featurize(X)
+
         # Transform data
         if self.transform:
             # Train
@@ -287,6 +290,9 @@ class AnvilWorkflow(AnvilWorkflowBase):
             # Test
             X_test_feat = self.transform.transform(X_test_feat)
             zarr.save(data_dir / "X_test_feat_transformed.zarr", X_test_feat)
+
+            # Whole dataset
+            X_feat = self.transform.transform(X_feat)
 
             logger.info("Data transformed")
         else:
@@ -363,6 +369,8 @@ class AnvilWorkflow(AnvilWorkflowBase):
                 model=self.model,
                 X_train=X_train_feat,
                 y_train=y_train,
+                X_all=X_feat,
+                y_all=y,
                 tag=model_tag,
                 target_labels=target_labels,
             )
@@ -678,6 +686,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         # Dataloader, indices, scaler, dataset
         test_dataloader, _, _, test_dataset = self.feat.featurize(X_test, y_test)
         torch.save(test_dataloader, output_dir / "test_dataloader.pth")
+
         logger.info("Data featurized")
 
         # Train
@@ -758,8 +767,8 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                 model=self.model,
                 X_train=train_dataloader,
                 y_train=train_dataloader,
-                X_train_raw=X_train,
-                y_train_raw=y_train,
+                X_all=X,
+                y_all=y,
                 featurizer=self.feat,
                 trainer=self.trainer,
                 use_wandb=use_wandb,
