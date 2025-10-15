@@ -24,6 +24,7 @@ from openadmet.models.tests.integration.datafiles import (
     rf_scaffold_cv,
     tabpfn,
     xgboost_perimeter_cv,
+    nepare_fp,
     cv_metrics_lgbm_descr,
     cv_metrics_lgbm_fp,
     cv_metrics_lgbm_combined,
@@ -48,6 +49,7 @@ class TestCPUAnvilConfigs:
             dummy_fp,
             chemprop_AChE_finetune,
             chemprop_AChE_finetune_ensemble,
+            nepare_fp,
         ],
     )
     def test_configs(self, recipe_file, tmp_path):

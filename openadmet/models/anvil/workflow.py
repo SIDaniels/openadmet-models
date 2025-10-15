@@ -5,7 +5,9 @@ import uuid
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
-from typing import Any
+
+from typing import Any, ClassVar, Literal, Optional
+
 
 import numpy as np
 import pandas as pd
@@ -109,7 +111,7 @@ class AnvilWorkflow(AnvilWorkflowBase):
         self.model = self.trainer.train(X_train_feat, y_train)
         logger.info("Model trained")
 
-    def _train_ensemble(self, X_train_feat, y_train, output_dir):
+    def _train_ensemble(self, X_train_feat, y_train, output_dir, **kwargs):
         X_train_feat = _safe_to_numpy(X_train_feat)
         y_train = _safe_to_numpy(y_train)
 
@@ -423,7 +425,9 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
         return self
 
-    def _train(self, train_dataloader, val_dataloader, train_scaler, output_dir):
+    def _train(
+        self, train_dataloader, val_dataloader, train_scaler, output_dir, **kwargs
+    ):
         # Load model from disk
         if (
             self.parent_spec.procedure.model.param_path is not None
@@ -434,7 +438,9 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                 self.parent_spec.procedure.model.param_path,
                 self.parent_spec.procedure.model.serial_path,
                 scaler=train_scaler,
+                **kwargs,
             )
+
             logger.info("Model loaded")
 
             # Optionally freeze weights
@@ -448,7 +454,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         # Build model from scratch
         else:
             logger.info("Building model")
-            self.model.build(scaler=train_scaler)
+            self.model.build(scaler=train_scaler, **kwargs)
             logger.info("Model built")
 
         # Pass model to trainer
@@ -470,7 +476,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         self.model = self.trainer.train(train_dataloader, val_dataloader)
         logger.info("Model trained")
 
-    def _train_ensemble(self, X_train, y_train, val_dataloader, output_dir):
+    def _train_ensemble(self, X_train, y_train, val_dataloader, output_dir, **kwargs):
         # Safely cast to numpy
         X_train = _safe_to_numpy(X_train)
         y_train = _safe_to_numpy(y_train)
@@ -524,6 +530,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                     self.parent_spec.procedure.ensemble.param_paths[i],
                     self.parent_spec.procedure.ensemble.serial_paths[i],
                     scaler=bootstrap_scaler,
+                    **kwargs,
                 )
                 logger.info(f"Model {i} loaded")
 
@@ -539,7 +546,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             else:
                 logger.info(f"Building model {i}")
                 self.model = self.model.make_new()
-                self.model.build(scaler=bootstrap_scaler)
+                self.model.build(scaler=bootstrap_scaler, **kwargs)
                 logger.info(f"Model {i} built")
 
             # Pass model to trainer
@@ -689,10 +696,25 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
 
         logger.info("Data featurized")
 
+        kwargs = {}
+        if self.parent_spec.procedure.feat.type == "PairwiseFeaturizer":
+            kwargs["input_dim"] = train_dataset[0][0].shape[
+                -1
+            ]  # this is the dimension of # of features, e.g. 1024 for ECFP4, variable for descriptors
+            logger.info(f"Input dim inferred as {kwargs['input_dim']}")
+        else:
+            logger.info("Input dim not inferred, assuming unpaired data")
+
         # Train
         if self.ensemble:
             # Ensemble mode
-            self._train_ensemble(X_train, y_train, val_dataloader, output_dir)
+            self._train_ensemble(
+                X_train,
+                y_train,
+                val_dataloader,
+                output_dir,
+                **kwargs,
+            )
 
             # Calibrate
             self.model.calibrate_uncertainty(
@@ -723,7 +745,13 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             logger.info("Model saved")
         else:
             # Single-model mode
-            self._train(train_dataloader, val_dataloader, train_scaler, output_dir)
+            self._train(
+                train_dataloader,
+                val_dataloader,
+                train_scaler,
+                output_dir,
+                **kwargs,
+            )
 
             # Save
             logger.info("Saving model")
