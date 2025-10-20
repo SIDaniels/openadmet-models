@@ -9,7 +9,7 @@ import torch
 from chemprop import models, nn
 from lightning import pytorch as pl
 from loguru import logger
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 
 from openadmet.models.architecture.model_base import LightningModelBase
 from openadmet.models.architecture.model_base import models as model_registry
@@ -93,6 +93,22 @@ class ChemPropModel(LightningModelBase):
     init_lr: float = 1e-4
     max_lr: float = 1e-3
     final_lr: float = 1e-4
+
+    _n_tasks: int = 1
+
+    @model_validator(mode="after")
+    def set_n_tasks(self) -> "ChemPropModel":
+        """
+        Set the number of tasks for the model.
+
+        Returns
+        -------
+        ChemPropModel
+            The updated model instance.
+
+        """
+        self._n_tasks = self.n_tasks
+        return self
 
     @field_validator("messages")
     @classmethod

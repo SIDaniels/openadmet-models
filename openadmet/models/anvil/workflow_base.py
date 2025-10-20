@@ -85,6 +85,24 @@ class AnvilWorkflowBase(BaseModel):
         ...
 
     @model_validator(mode="after")
+    def check_multitask_compatibility(self) -> None:
+        """
+        Validate that the model and data specification are compatible for multitask learning.
+
+        Raises
+        ------
+        ValueError
+            If the model is multitask but the data specification does not support multitask learning.
+
+        """
+        if self.model._n_tasks != len(self.data_spec.target_cols):
+            raise ValueError(
+                f"The model has {self.model.n_tasks} tasks but the data specification has {len(self.data_spec.target_cols)} target columns."
+            )
+
+        return self
+
+    @model_validator(mode="after")
     def no_ensemble_cross_val(self) -> "AnvilWorkflowBase":
         """
         Validate that ensemble models are not used with cross-validation.
