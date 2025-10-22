@@ -107,4 +107,4 @@ Each notebook demonstrates a key step in building and deploying a CYP3A4 inhibit
       :link: https://try.openadmet.org
       :link-type: url
 
-        Explore a comprehensive, end-to-end showcase notebook hosted on Google Colab — ideal for a quick overview of OpenADMET Models in action.
+        Explore a comprehensive, end-to-end showcase notebook hosted on Binder — ideal for a quick overview of OpenADMET Models in action.
