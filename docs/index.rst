@@ -37,7 +37,7 @@ This documentation provides an overview of the package's features, as well as de
       :link: https://try.openadmet.org
       :link-type: url
 
-      New to OpenADMET Models? Try it out in your browser with Colab.
+      New to OpenADMET Models? Try it out in your browser with Binder (may take a moment to load).
 
     .. grid-item-card:: Example Tutorials
       :margin: 0 3 0 0
