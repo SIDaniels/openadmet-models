@@ -6,10 +6,17 @@ from loguru import logger
 from sklearn.model_selection import GridSearchCV
 
 from openadmet.models.trainer.trainer_base import TrainerBase, trainers
+from openadmet.models.drivers import DriverType
+
+
+class SKLearnTrainer(TrainerBase):
+    """Base trainer for sklearn models."""
+
+    _driver_type: DriverType = DriverType.SKLEARN
 
 
 @trainers.register("SKLearnBasicTrainer")
-class SKlearnBasicTrainer(TrainerBase):
+class SKlearnBasicTrainer(SKLearnTrainer):
     """Basic trainer for sklearn models."""
 
     def train(self, X: Any, y: Any):
@@ -39,7 +46,7 @@ class SKlearnBasicTrainer(TrainerBase):
         pass
 
 
-class SKLearnSearchTrainer(TrainerBase):
+class SKLearnSearchTrainer(SKLearnTrainer):
     """
     Trainer for sklearn models with search.
 

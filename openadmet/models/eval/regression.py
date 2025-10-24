@@ -303,6 +303,8 @@ class RegressionPlots(EvalBase):
         Whether to compute and display statistics on the plots.
     pXC50 : bool
         Whether to highlight pXC50 log unit ranges.
+    plot_errbars : bool
+        Whether to plot error bars for ensemble predictions.
     plots : dict
         Dictionary of plot functions.
     min_val : float
@@ -325,6 +327,9 @@ class RegressionPlots(EvalBase):
         False,
         description="Whether to plot for pXC50, highlighting 0.5 and 1.0 log range unit",
     )
+    plot_errbars: bool = Field(
+        False, description="Whether to plot error bars for ensemble predictions"
+    )
     plots: dict = {}
     min_val: float = Field(None, description="Minimum value for the axes")
     max_val: float = Field(None, description="Maximum value for the axes")
@@ -332,7 +337,13 @@ class RegressionPlots(EvalBase):
     dpi: int = Field(300, description="DPI for the plot")
 
     def evaluate(
-        self, y_true=None, y_pred=None, use_wandb=False, target_labels=None, **kwargs
+        self,
+        y_true=None,
+        y_pred=None,
+        y_std=None,
+        use_wandb=False,
+        target_labels=None,
+        **kwargs,
     ):
         """
         Generate regression plots and optionally compute statistics.
@@ -343,6 +354,8 @@ class RegressionPlots(EvalBase):
             True values.
         y_pred : array-like
             Predicted values.
+        y_std : array-like
+            Standard deviation of predictions if ensemble is specified.
         use_wandb : bool, optional
             Whether to log plots to Weights & Biases.
         target_labels : list of str, optional
@@ -404,6 +417,7 @@ class RegressionPlots(EvalBase):
                     self.plot_data[f"{t_label}_{plot_tag}"] = plot(
                         t_true,
                         t_pred,
+                        y_pred_err=y_std,
                         xlabel=self.axes_labels[0],
                         ylabel=self.axes_labels[1],
                         title=f"{self.title}\nTask: {t_label}",
@@ -411,6 +425,7 @@ class RegressionPlots(EvalBase):
                         pXC50=self.pXC50,
                         min_val=self.min_val,
                         max_val=self.max_val,
+                        plot_errbars=self.plot_errbars,
                     )
         return self.plot_data
 
@@ -430,6 +445,7 @@ class RegressionPlots(EvalBase):
         min_val=None,
         max_val=None,
         fit_reg=True,
+        plot_errbars=False,
     ):
         """
         Create a regression scatter plot with optional confidence intervals and statistics table.
@@ -464,6 +480,8 @@ class RegressionPlots(EvalBase):
             Maximum axis value.
         fit_reg : bool, optional
             Whether to fit and plot a regression line.
+        plot_errbars : bool, optional
+            Whether to plot model error bars from ensemble predictions.
 
         Returns
         -------
@@ -496,7 +514,7 @@ class RegressionPlots(EvalBase):
             scatter_kws={"alpha": 0.3},
         )
 
-        if y_pred_err is not None:
+        if y_pred_err is not None and plot_errbars:
             g.ax_joint.errorbar(
                 x=np.ravel(y_true),
                 y=np.ravel(y_pred),
@@ -506,7 +524,7 @@ class RegressionPlots(EvalBase):
                 alpha=0.3,
             )
 
-        if y_true_err is not None:
+        if y_true_err is not None and plot_errbars:
             g.ax_joint.errorbar(
                 x=np.ravel(y_true),
                 y=np.ravel(y_pred),

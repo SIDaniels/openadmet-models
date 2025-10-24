@@ -24,6 +24,7 @@ from openadmet.models.eval.regression import (
 )
 from openadmet.models.trainer.lightning import LightningTrainer
 from openadmet.models.eval.utils import _make_stat_caption, _make_stat_dict
+from openadmet.models.drivers import DriverType
 
 from openadmet.models.features.pairwise import PairwiseFeaturizer
 
@@ -52,6 +53,8 @@ class CrossValidationBase(EvalBase):
         Title for the plots.
     pXC50 : bool
         Whether to plot for pXC50, highlighting 0.5 and 1.0 log range unit.
+    plot_errbars : bool
+        Whether to plot error bars for ensemble predictions.
     confidence_level : float
         Confidence level for the confidence interval.
     _metrics : dict
@@ -72,6 +75,9 @@ class CrossValidationBase(EvalBase):
     pXC50: bool = Field(
         False,
         description="Whether to plot for pXC50, highlighting 0.5 and 1.0 log range unit",
+    )
+    plot_errbars: bool = Field(
+        False, description="Whether to plot error bars for ensemble predictions"
     )
     confidence_level: float = Field(
         0.95, description="Confidence level for the confidence interval"
@@ -120,6 +126,8 @@ class SKLearnRepeatedKFoldCrossValidation(CrossValidationBase):
     n_splits: int = Field(5, description="Number of splits for cross-validation")
     n_repeats: int = Field(1, description="Number of repeats for cross-validation")
     random_state: int = Field(42, description="Random state for reproducibility")
+
+    _driver_type: DriverType = DriverType.SKLEARN
 
     def evaluate(
         self,
@@ -268,6 +276,7 @@ class SKLearnRepeatedKFoldCrossValidation(CrossValidationBase):
                     pXC50=self.pXC50,
                     min_val=self.min_val,
                     max_val=self.max_val,
+                    plot_errbars=self.plot_errbars,
                 )
 
         return self.data
@@ -406,6 +415,7 @@ class PytorchLightningRepeatedKFoldCrossValidation(CrossValidationBase):
     n_repeats: int = Field(1, description="Number of repeats for cross-validation")
     random_state: int = Field(42, description="Random state for reproducibility")
     _evaluated: bool = False
+    _driver_type: DriverType = DriverType.LIGHTNING
     axes_labels: list[str] = Field(
         ["Measured", "Predicted"], description="Labels for the axes"
     )
