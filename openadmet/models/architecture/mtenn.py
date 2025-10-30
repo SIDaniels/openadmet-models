@@ -1,5 +1,6 @@
 """MTENN model implementation."""
 
+import os
 from typing import ClassVar, Optional
 
 import numpy as np
@@ -10,8 +11,6 @@ from mtenn.config import ModelConfig, SchNetRepresentationConfig
 
 from openadmet.models.architecture.model_base import LightningModelBase
 from openadmet.models.architecture.model_base import models as model_registry
-
-import os
 
 
 class MSELoss(torch.nn.MSELoss):
@@ -215,7 +214,36 @@ class MTENNLightningModule(pl.LightningModule):
             batch_loss += loss
 
         avg_loss = batch_loss / len(data_batch)
-        self.log("train_loss", avg_loss)
+        self.log("train_loss", avg_loss, prog_bar=True, sync_dist=True)
+        return avg_loss
+
+    def validation_step(self, batch, batch_idx):
+        """
+        Perform a validation step.
+
+        Parameters
+        ----------
+        batch : tuple
+            Tuple containing a batch of input data and targets.
+        batch_idx : int
+            Index of the batch.
+
+        Returns
+        -------
+        torch.Tensor
+            The average loss for the batch.
+
+        """
+        data_batch, target_batch = batch
+        batch_loss = 0.0
+
+        for data, target in zip(data_batch, target_batch):
+            pred = self(data)
+            loss = self.loss_fn(pred, None, target.to(self.device), None, None)
+            batch_loss += loss
+
+        avg_loss = batch_loss / len(data_batch)
+        self.log("val_loss", avg_loss, prog_bar=True, sync_dist=True)
         return avg_loss
 
     def predict_step(self, batch, batch_idx):
