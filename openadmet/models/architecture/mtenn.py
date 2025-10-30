@@ -236,8 +236,9 @@ class MTENNLightningModule(pl.LightningModule):
 
         """
         data_batch, _ = batch
-        preds = [self(data) for data in data_batch]
-        return torch.cat(preds, dim=0)
+        # Handle (n,1) shape required for anvil workflow
+        preds = [self(data).unsqueeze(1) for data in data_batch]
+        return torch.cat(preds)
 
     def configure_optimizers(self):
         """

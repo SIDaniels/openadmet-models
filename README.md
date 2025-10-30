@@ -6,13 +6,15 @@
 [![codecov](https://codecov.io/gh/OpenADMET/openadmet_models/branch/main/graph/badge.svg)](https://codecov.io/gh/OpenADMET/openadmet_models/branch/main)
 [![Documentation Status](https://readthedocs.org/projects/openadmet-models/badge/?version=latest)](https://openadmet-models.readthedocs.io/en/latest/?badge=latest)
 [![Demos](https://img.shields.io/badge/GitHub-Demos-blue?logo=github)](https://github.com/OpenADMET/openadmet-demos)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/OpenADMET/openadmet-demos/HEAD?urlpath=%2Fdoc%2Ftree%2Fshowcase%2FOpenADMET_Models_Showcase.ipynb)
+[![Google Colab](https://img.shields.io/badge/Google%20Colab-F9AB00?logo=googlecolab&logoColor=fff)](https://try.openadmet.org)
+<!--[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/OpenADMET/openadmet-demos/HEAD?urlpath=%2Fdoc%2Ftree%2Fshowcase%2FOpenADMET_Models_Showcase.ipynb)-->
+
 
 `openadmet-models` contains implementations of machine learning architectures and training routines for use in the [OpenADMET project](https://openadmet.org). Our goal is to provide a consistent framework for rapid development, experimentation, and prototyping of ML models for ADMET (Absorption, Distribution, Metabolism, Excretion, and Toxicity) prediction tasks.
 
 The library includes traditional machine learning methods, deep learning models, and active learning workflows. It is designed for general-purpose use and is not intended to implement every state-of-the-art architectures, but rather to provide a practical, flexible foundation for ADMET modeling.
 
-Read the documentation [here](https://docs.openadmet.org) to learn more. There is also a set of [demonstration tutorials](demos.openadmet.org) for a deeper dive into and a showcase example you can try live on [Binder](try.openadmet.org)!
+Read the documentation [here](https://docs.openadmet.org) to learn more. There is also a set of [demonstration tutorials](demos.openadmet.org) for a deeper dive into and a showcase example you can try live on [Google Colab](try.openadmet.org)!
 
 ## License
 
