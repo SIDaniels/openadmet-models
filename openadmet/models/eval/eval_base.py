@@ -3,9 +3,9 @@
 from abc import abstractmethod
 from typing import Callable, ClassVar
 
-from loguru import logger
 import numpy as np
 from class_registry import ClassRegistry, RegistryKeyError
+from loguru import logger
 from pydantic import BaseModel
 from scipy.stats import bootstrap
 
@@ -57,6 +57,8 @@ def mask_nans(y_true: np.ndarray, y_pred: np.ndarray):
         Filtered arrays (y_true, y_pred) with NaNs removed.
 
     """
+    y_true = np.squeeze(y_true)
+    y_pred = np.squeeze(y_pred)
     mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
     return y_true[mask], y_pred[mask]
 
