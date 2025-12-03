@@ -367,9 +367,9 @@ You can choose from different splitter types, each with its own parameters to co
   * - :doc:`ScaffoldSplitter </_api/api/splitting/data_driven>`
     - Splits the dataset based on molecular scaffolds to ensure that similar compounds are grouped together in the same set.
   * - :doc:`MaxDissimilaritySplitter </_api/api/splitting/data_driven>`
-    - Splits the dataset based on maximum dissimilarity between training, validation, and test sets, promoting diversity in each set.
+    - Splits the dataset based on maximum dissimilarity between training, validation, and test sets, promoting diversity between sets.
   * - :doc:`PerimeterSplitter </_api/api/splitting/data_driven>`
-    - Splits the dataset by selecting compounds at the periphery of the chemical space, ensuring that edge cases are included in the training set.
+    - Splits the dataset by selecting compounds at the periphery of the chemical space, ensuring that edge cases are included in the test set.
 
 Example
 """""""
