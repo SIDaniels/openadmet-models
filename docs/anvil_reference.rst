@@ -1,15 +1,15 @@
 Anvil Reference
 ================
 Anvil is a workflow engine integrated into openadmet_models that allows users to define a human-readable model
-specification to reproducibly train and evaluate machine learning models. 
-This is to facilitate large-scale reproducible training and comparisons across different datasets, models, and featurizations. 
-In addition, anvil also allows for the training of model ensembles, that can be easily used in downstream applications 
+specification to reproducibly train and evaluate machine learning models.
+This is to facilitate large-scale reproducible training and comparisons across different datasets, models, and featurizations.
+In addition, anvil also allows for the training of model ensembles, that can be easily used in downstream applications
 such as active learning.
 
-Anvil is built around the concept of a "recipe" - a YAML file that specifies all the components of a machine learning 
-workflow, including data loading, featurization, model architecture, training parameters, and evaluation metrics. 
+Anvil is built around the concept of a "recipe" - a YAML file that specifies all the components of a machine learning
+workflow, including data loading, featurization, model architecture, training parameters, and evaluation metrics.
 By defining a recipe, users can easily reproduce experiments, share workflows with others, and systematically explore different modeling approaches.
-Anvil also makes our (OpenADMET Team) lives easier by handling the boilerplate code associated with setting up and 
+Anvil also makes our (OpenADMET Team) lives easier by handling the boilerplate code associated with setting up and
 running machine learning experiments, saving us from a twisted jungle of scripts and configuration files.
 
 A full list of available models, featurizers, trainers, and evaluators can be found in the OpenADMET API documentation.
@@ -30,9 +30,9 @@ how they interact across models and trainers.
 
 Metadata
 ^^^^^^^^
-The ``metadata`` section provides essential information about the workflow, such as authorship, versioning, and 
-descriptive tags. 
-This section ensures that workflows are well-documented and easily identifiable. 
+The ``metadata`` section provides essential information about the workflow, such as authorship, versioning, and
+descriptive tags.
+This section ensures that workflows are well-documented and easily identifiable.
 Many of these fields are purely descriptive and do not affect the workflow's execution.
 
 Workflows are divided into "drivers" which specify the backend framework to be used.
@@ -100,8 +100,8 @@ You must specify the dataset location, input column, target columns, and optiona
 The data loader can read from remote locations as well as local files.
 
 Reading from a local file requires specifying the path to the dataset file in the ``resource`` field.
-Supported file types include CSV, and Parquet. 
-If using ``resource`` your dataset will be split into training, validation, and test sets using the specified splitter 
+Supported file types include CSV, and Parquet.
+If using ``resource`` your dataset will be split into training, validation, and test sets using the specified splitter
 in the ``procedure`` section.
 
 Alternatively, you can also provide separate files for training, validation, and test sets by using the ``train_resource``,
@@ -117,8 +117,8 @@ Alternatively, you can also provide separate files for training, validation, and
      - target_column_name2
      dropna: false
 
-A more advanced option is to use an Intake catalog to manage datasets. 
-This is done by specifying a YAML file in the ``resource`` field and the catalog entry in the ``cat_entry`` field. 
+A more advanced option is to use an Intake catalog to manage datasets.
+This is done by specifying a YAML file in the ``resource`` field and the catalog entry in the ``cat_entry`` field.
 This allows for more flexible dataset management, especially when dealing with multiple datasets or complex data sources.
 
 .. code-block:: yaml
@@ -209,15 +209,15 @@ An example of using train, validation, and test resources:
 
 Procedure
 ^^^^^^^^^
-The ``procedure`` section is the core of the workflow, where the data is transformed, models are defined, data splits 
-are configured, and training parameters are set. 
+The ``procedure`` section is the core of the workflow, where the data is transformed, models are defined, data splits
+are configured, and training parameters are set.
 
 - **Featurization**: Defines how molecular data is transformed into numerical representations using various available
   featurizers, specified in the `feat` subsection.
 - **Model**: Specifies the model to be used, including loading from saved model weights, under the `model` subsection.
-- **Splits**: Configures how the dataset is divided into training, validation, and test sets using assigned splitter, 
+- **Splits**: Configures how the dataset is divided into training, validation, and test sets using assigned splitter,
   defined in the `split` subsection.
-- **Training**: Sets up the training process, including the trainer type and training parameters, under the `train` 
+- **Training**: Sets up the training process, including the trainer type and training parameters, under the `train`
   subsection.
 
 Each subsection provides examples and parameter descriptions to help you configure the workflow
@@ -226,7 +226,7 @@ according to your requirements.
 Featurization
 ~~~~~~~~~~~~~
 The ``feat`` section provides a variety of featurizers which map molecular data into suitable input formats for the specified model.
-Below are the available options. Each featurizer has its own set of parameters which can be found in the linked OpenADMET 
+Below are the available options. Each featurizer has its own set of parameters which can be found in the linked OpenADMET
 API documentation.
 
 In general we follow the design pattern that all deep learning featurizers return a ``PyTorch`` ``DataLoader`` as input,
@@ -286,8 +286,8 @@ As an example, the ``ChemPropFeaturizer`` is selected for ``ChemProp``-family mo
 Models
 ~~~~~~
 The ``models`` section specifies the model to be used in the workflow.
-It allows you to define the type of model, its parameters, and any additional configurations required for training and evaluation. 
-Each model type has its own set of options, enabling customization to suit specific tasks and datasets. 
+It allows you to define the type of model, its parameters, and any additional configurations required for training and evaluation.
+Each model type has its own set of options, enabling customization to suit specific tasks and datasets.
 Refer to the linked OpenADMET API documentation for detailed information on each model's implementation and usage.
 
 .. list-table::
@@ -426,7 +426,7 @@ Currently we only offer a :doc:`CommitteeRegressor </_api/api/active_learning/co
 the models in the ensemble as the standard deviation of their predictions.
 
 Models can also be calibrated after training using a scaling factor method to improve uncertainty estimates.
-This functionality is provided by the `uncertainty_toolbox <https://github.com/uncertainty-toolbox/uncertainty-toolbox>`_ 
+This functionality is provided by the `uncertainty_toolbox <https://github.com/uncertainty-toolbox/uncertainty-toolbox>`_
 package. See :doc:`UncertaintyMetrics </_api/api/model_evaluation/uncertainty>` for more details.
 
 Example
@@ -443,7 +443,7 @@ The ``report`` section specifies the evaluations to be performed after training 
 You can choose from various evaluation types, each with its own parameters to customize the output.
 Regression models are only compatible with ``RegressionMetrics`` and similarly classification models only with ``ClassificationMetrics``.
 
-Importantly, the ``report`` section also allows for cross-validation to be performed to evaluate the robustness of the model. 
+Importantly, the ``report`` section also allows for cross-validation to be performed to evaluate the robustness of the model.
 Note that cross-validation can be computationally expensive, especially for deep learning models.
 
 .. list-table::
