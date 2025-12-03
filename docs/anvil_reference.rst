@@ -437,6 +437,53 @@ Example
     n_models: 10
     calibration_method: scaling-factor
 
+Finetuning
+~~~~~~~~~~
+Deep learning models can also be configured to load pretrained weights during initialization, enabling finetuning on new datasets.
+Classic machine learning models do not have weights or state to load, requiring complete retraining with new data concatenated to the original training set.
+For single models, paths to a saved model are specified with the ``serial_path`` and ``param_path`` fields in the ``model`` section.
+Note that any model parameters defined in the ``params`` field will be overridden by those loaded from the saved model.
+
+.. code-block:: yaml
+  model:
+    type: ChemPropModel
+    serial_path: PATH_TO_SAVED_MODEL/model.pth
+    param_path: PATH_TO_SAVED_MODEL/model_params.json
+
+For deep learning ensembles, each model in the ensemble can load its own pretrained weights by specifying a list of paths
+in the ``serial_paths`` and ``param_paths`` fields in the ``ensemble`` section.
+
+.. code-block:: yaml
+  ensemble:
+    type: CommitteeRegressor
+    n_models: 10
+    calibration_method: scaling-factor
+    serial_paths:
+    - PATH_TO_SAVED_MODEL_1/model.pth
+    - PATH_TO_SAVED_MODEL_2/model.pth
+    - ...
+    param_paths:
+    - PATH_TO_SAVED_MODEL_1/model_params.json
+    - PATH_TO_SAVED_MODEL_2/model_params.json
+    - ...
+
+Finally, select components of the deep learning model can be frozen during training to prevent their weights from being updated.
+This is done by specifying the ``freeze_weights`` field in the ``model`` section.
+Here, the message passing layers are frozen, while batch normalization and feedforward network layers remain trainable.
+
+.. code-block:: yaml
+    model:
+    type: ChemPropModel
+    serial_path: PATH_TO_SAVED_MODEL/model.pth
+    param_path: PATH_TO_SAVED_MODEL/model_params.json
+    freeze_weights:
+      message_passing: true
+      batch_norm: false
+      ffn_layers: 0
+
+Freezable components vary by model architecture. 
+Please refer to the specific model documentation for details on which parts can be frozen.
+
 Report
 ^^^^^^
 The ``report`` section specifies the evaluations to be performed after training the model.
