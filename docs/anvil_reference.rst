@@ -283,9 +283,9 @@ As an example, the ``ChemPropFeaturizer`` is selected for ``ChemProp``-family mo
     type: ChemPropFeaturizer
     params: {}
 
-Models
-~~~~~~
-The ``models`` section specifies the model to be used in the workflow.
+Model
+~~~~~
+The ``model`` section specifies the model to be used in the workflow.
 It allows you to define the type of model, its parameters, and any additional configurations required for training and evaluation.
 Each model type has its own set of options, enabling customization to suit specific tasks and datasets.
 Refer to the linked OpenADMET API documentation for detailed information on each model's implementation and usage.
