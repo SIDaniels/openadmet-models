@@ -72,6 +72,8 @@ jobs:
         # use the `-m gpu` marker to run only GPU tests
         run: |
           pytest -v -n auto -m gpu --cov=openadmet.models --cov-report=xml  --color=yes openadmet/models/tests/integration
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
       - name: Post to failure to Slack Channel
         if: ${{ failure() }}
