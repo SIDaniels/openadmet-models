@@ -256,8 +256,6 @@ a ``2D NumPy array`` or pandas ``DataFrame``.
     - Description
   * - :doc:`ChemPropFeaturizer </_api/api/featurization/chemprop>`
     - Converts SMILES strings into a ChemProp compatible PyTorch DataLoader.
-  * - :doc:`GATGraphFeaturizer </_api/api/featurization/GAT>`
-    - Converts SMILES strings into graph Data objects for GAT-like models, uses a PyTorch DataLoader.
   * - :doc:`MTENNFeaturizer </_api/api/featurization/mtenn>`
     - Creates masked PDB features suitable for downstream use in MTENN models, uses a PyTorch DataLoader.
   * - :doc:`DescriptorFeaturizer </_api/api/featurization/descriptors>`
@@ -324,8 +322,6 @@ on each model's implementation and usage.
     - Description
   * - :doc:`ChemPropModel </_api/api/model_architectures/chemprop>`
     - `ChemProp <https://github.com/chemprop/chemprop>`_ Message Passing Neural Network. Also, used when implementing `Chemeleon <https://github.com/JacksonBurns/chemeleon>`_.
-  * - :doc:`GATv2Model </_api/api/model_architectures/GAT>`
-    - Graph Attention Network v2 (`GATv2 <https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.GATv2Conv.html#torch_geometric.nn.conv.GATv2Conv>`_) model implementation.
   * - :doc:`CatBoostClassifierModel </_api/api/model_architectures/catboost>`
     - Gradient boosting on decision trees for classification using `CatBoost <https://catboost.ai/docs/en/>`_.
   * - :doc:`CatBoostRegressorModel </_api/api/model_architectures/catboost>`
