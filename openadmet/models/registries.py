@@ -11,7 +11,6 @@ from openadmet.models.active_learning.ensemble_base import ensemblers  # noqa: F
 # models
 from openadmet.models.architecture.catboost import *  # noqa: F401 F403
 from openadmet.models.architecture.chemprop import *  # noqa: F401 F403  # noqa: F401 F403
-from openadmet.models.architecture.gat import *  # noqa: F401 F403
 from openadmet.models.architecture.dummy import *  # noqa: F401 F403
 from openadmet.models.architecture.lgbm import *  # noqa: F401 F403  # noqa: F401 F403
 from openadmet.models.architecture.mtenn import *  # noqa: F401 F403
@@ -32,7 +31,6 @@ from openadmet.models.eval.eval_base import evaluators  # noqa: F401 F403
 # featurizers
 from openadmet.models.features.chemprop import *  # noqa: F401 F403
 from openadmet.models.features.combine import *  # noqa: F401 F403
-from openadmet.models.features.gat_featurizer import *  # noqa: F401 F403
 from openadmet.models.features.molfeat_fingerprint import *  # noqa: F401 F403
 from openadmet.models.features.molfeat_properties import *  # noqa: F401 F403
 from openadmet.models.features.mtenn import *  # noqa: F401 F403
