@@ -376,7 +376,7 @@ Here, the message passing layers are frozen, while batch normalization and feedf
       batch_norm: false
       ffn_layers: 0
 
-Freezable components vary by model architecture. 
+Freezable components vary by model architecture.
 Please refer to the specific model documentation for details on which parts can be frozen.
 
 Splitting
