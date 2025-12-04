@@ -11,7 +11,6 @@ from openadmet.models.active_learning.ensemble_base import ensemblers  # noqa: F
 # models
 from openadmet.models.architecture.catboost import *  # noqa: F401 F403
 from openadmet.models.architecture.chemprop import *  # noqa: F401 F403  # noqa: F401 F403
-from openadmet.models.architecture.gat import *  # noqa: F401 F403
 from openadmet.models.architecture.dummy import *  # noqa: F401 F403
 from openadmet.models.architecture.lgbm import *  # noqa: F401 F403  # noqa: F401 F403
 from openadmet.models.architecture.mtenn import *  # noqa: F401 F403
