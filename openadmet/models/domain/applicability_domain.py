@@ -6,6 +6,7 @@ import datamol as dm
 from pathlib import Path
 import seaborn as sns
 import matplotlib.pyplot as plt
+from openadmet.models.anvil.specification import DataSpec
 
 def _calculate_top_k_similarity(train_fp, test_fp, top_k=1):
     """
@@ -34,7 +35,7 @@ def _calculate_top_k_similarity(train_fp, test_fp, top_k=1):
     return np.array(similarities)
 
 
-def calculate_ad(train_smiles, test_smiles, threshold=0.35, top_k=1):
+def calculate_ad(train_smiles, test_smiles, threshold=0.35, top_k=1, radius=2, nBits=2048):
     if isinstance(train_smiles, pd.Series):
         train_smiles = train_smiles.values
     
@@ -42,8 +43,8 @@ def calculate_ad(train_smiles, test_smiles, threshold=0.35, top_k=1):
         test_smiles = test_smiles.values
 
     with dm.without_rdkit_log():
-        train_fps = [smi2morgan_fp(smile, radius=2, nBits=2048) for smile in train_smiles]
-        test_fps = [smi2morgan_fp(smile, radius=2, nBits=2048) for smile in test_smiles]
+        train_fps = [smi2morgan_fp(smile, radius=radius, nBits=nBits) for smile in train_smiles]
+        test_fps = [smi2morgan_fp(smile, radius=radius, nBits=nBits) for smile in test_smiles]
 
     similarities = _calculate_top_k_similarity(train_fps, test_fps, top_k=top_k)
     ad_flags = similarities >= threshold
@@ -51,30 +52,96 @@ def calculate_ad(train_smiles, test_smiles, threshold=0.35, top_k=1):
 
 
 
-def ad_from_anvil(test_data_path, anvil_dir, test_smiles_col='SMILES', train_smiles_col='SMILES', threshold=0.35, top_k=1, do_plot=True, plot_path='ad_boxplot.png'):
+def tantimoto_similarity_from_anvil(data_path, anvil_dir, test_smiles_col='SMILES', threshold=0.35, top_k=1, do_plot=True, plot_path='ad_boxplot.png', radius=2, nBits=2048):
     if not Path(anvil_dir).exists():
         raise ValueError(f"Anvil directory {anvil_dir} does not exist.")
 
-    if not Path(test_data_path).exists():
-        raise ValueError(f"Test data file {test_data_path} does not exist.")
+    if not Path(data_path).exists():
+        raise ValueError(f"Test data file {data_path} does not exist.")
 
     train_data_path_csv = Path(anvil_dir) / "data/X_train.csv"
-    train_df = pd.read_csv(train_data_path_csv)
-    anvil_train_smiles = train_df[train_smiles_col]
+    # find what the smiles column was from anvil training spec
 
-    test_df = pd.read_csv(test_data_path)
+    data_spec = Path(anvil_dir) / "recipe_components/data.yaml"
+    if not data_spec.exists():
+        raise FileNotFoundError(f"Model path {model_dir} does not contain data.yaml")
+    # Load the data specification
+    data = DataSpec.from_yaml(data_spec)
+    x_col = data.input_col
+
+    train_df = pd.read_csv(train_data_path_csv)
+    anvil_train_smiles = train_df[x_col]
+
+    test_df = pd.read_csv(data_path)
     test_smiles = test_df[test_smiles_col]
 
-    ad_flags, similarities = calculate_ad(anvil_train_smiles, test_smiles, threshold=threshold, top_k=top_k)
-    # make boxplot
+    ad_flags, similarities = calculate_ad(anvil_train_smiles, test_smiles, threshold=threshold, top_k=top_k, radius=radius, nBits=nBits)
+
     if do_plot:
-        sns.boxplot(x=ad_flags, y=similarities)
-        sns.stripplot(x=ad_flags, y=similarities, color='black', alpha=0.3)
-        plt.xlabel('Within AD')
-        plt.ylabel('Tanimoto Similarity')
-        plt.title('AD Similarity Distribution')
-        plt.savefig(plot_path)
-        plt.close()
-        return ad_flags, similarities, plot_path
-    return ad_flags, similarities
-    
+        
+
+        fig = plt.figure(figsize=(8, 6))
+
+        sns.ecdfplot(similarities)
+
+        plt.axvline(
+            x=threshold, 
+            color='red', 
+            linestyle='--', 
+            linewidth=2, 
+            label=f'AD Threshold ({threshold:.2f})'
+        )
+
+        plt.axvspan(
+            xmin=0, 
+            xmax=threshold, 
+            color='red', 
+            alpha=0.1, 
+            label='Outside AD'
+        )
+
+        plt.axvspan(
+            xmin=threshold, 
+            xmax=1, 
+            color='green', 
+            alpha=0.1, 
+            label='Within AD'
+        ) 
+        pct_in = np.sum(ad_flags) / len(ad_flags) * 100
+        pct_out = 100 - pct_in
+
+        # Position: Top-left of the plot area
+        x_pos = 0.05
+        y_pos_in = 0.95
+        y_pos_out = 0.88
+        # give text white background for readability
+        plt.text(
+            x=x_pos,
+            y=y_pos_in,
+            s=f'Within AD: {pct_in:.1f}%',
+            color='green',
+            transform=plt.gca().transAxes,
+            fontsize=11,
+            verticalalignment='top',
+            backgroundcolor='white',
+        )
+        plt.text(
+            x=x_pos,
+            y=y_pos_out,
+            s=f'Outside AD: {pct_out:.1f}%',
+            color='red',
+            transform=plt.gca().transAxes,
+            fontsize=11,
+            verticalalignment='top',
+            backgroundcolor='white',
+
+        )   
+
+        plt.ylabel('Proportion')
+        plt.xlabel(f'Top k (k={top_k}) Avg TanimotoSim MorganFP[r={radius}, nBits={nBits}]')
+        # Save the figure
+        plt.savefig(plot_path, bbox_inches='tight') 
+        
+        return ad_flags, similarities, fig
+
+    return ad_flags, similarities, None
