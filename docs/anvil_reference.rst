@@ -226,7 +226,7 @@ according to your requirements.
 Featurization
 ~~~~~~~~~~~~~
 The ``feat`` section is used to specify among a variety of featurizers, which map molecular data into suitable input formats for the specified model.
-Below are the available options. 
+Below are the available options.
 Each featurizer has its own set of parameters which can be found in the linked OpenADMET API documentation.
 
 In general we follow the design pattern that all deep learning featurizers return a ``PyTorch`` ``DataLoader`` as input,
