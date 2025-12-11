@@ -187,7 +187,7 @@ def predict(
         elif input_path.endswith(".sdf"):
             data = PandasTools.LoadSDF(input_path, smilesName=input_col)
         elif input_path.endswith(".parquet"):
-            data = pd.read_parquet(input_path)
+            data = pd.read_parquet(input_path).reset_index(drop=True)
         else:
             raise ValueError("Path must lead to a CSV or SDF or parquet file")
     else:
