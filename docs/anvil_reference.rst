@@ -3,7 +3,7 @@ Anvil Reference
 Anvil is a workflow engine integrated into openadmet_models that allows users to define a human-readable model
 specification to reproducibly train and evaluate machine learning models.
 This is to facilitate large-scale reproducible training and comparisons across different datasets, models, and featurizations.
-In addition, anvil also allows for the training of model ensembles, that can be easily used in downstream applications
+In addition, anvil allows for the training of model ensembles, that can be easily used in downstream applications
 such as active learning.
 
 Anvil is built around the concept of a "recipe" - a YAML file that specifies all the components of a machine learning
@@ -225,9 +225,9 @@ according to your requirements.
 
 Featurization
 ~~~~~~~~~~~~~
-The ``feat`` section provides a variety of featurizers which map molecular data into suitable input formats for the specified model.
-Below are the available options. Each featurizer has its own set of parameters which can be found in the linked OpenADMET
-API documentation.
+The ``feat`` section is used to specify among a variety of featurizers, which map molecular data into suitable input formats for the specified model.
+Below are the available options. 
+Each featurizer has its own set of parameters which can be found in the linked OpenADMET API documentation.
 
 In general we follow the design pattern that all deep learning featurizers return a ``PyTorch`` ``DataLoader`` as input,
 while traditional machine learning models return a a 2D ``NumPy`` array or ``pandas`` ``DataFrame``.
@@ -251,7 +251,7 @@ while traditional machine learning models return a a 2D ``NumPy`` array or ``pan
   * - :doc:`FeatureConcatenator </_api/api/featurization/feature_combiner>`
     - Combines multiple featurizers into a single feature array.
 
-Featurization for a traditional machine learning model using fingerprints is easily done by specifying the ``FingerprintFeaturizer``.
+For example, featurization for a traditional machine learning model using fingerprints is easily done by specifying the ``FingerprintFeaturizer``.
 
 .. code-block:: yaml
    feat:
