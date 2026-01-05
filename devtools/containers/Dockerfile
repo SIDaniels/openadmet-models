@@ -7,6 +7,7 @@ LABEL org.opencontainers.image.licenses=MIT
 
 # set environment variables
 ENV PYTHONUNBUFFERED=1
+ENV CONDA_OVERRIDE_CUDA="11.8"
 
 RUN micromamba config append channels conda-forge
 
