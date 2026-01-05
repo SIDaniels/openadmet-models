@@ -48,6 +48,7 @@ dependencies:
   - wandb
   - xgboost
   - zarr >=3.0.0
+  - cudatoolkit
   - pip:
     - email-validator
     - git+https://github.com/OpenADMET/mtenn.git@main
