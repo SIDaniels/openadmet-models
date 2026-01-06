@@ -1,16 +1,21 @@
 """Cluster-based data splitting implementations."""
 
+import logging
 from pydantic import BaseModel, field_validator, model_validator
 from typing import Literal
-from sklearn.model_selection import train_test_split
-from splito import KMeansSplit
+from sklearn.model_selection import GroupShuffleSplit
+from sklearn.cluster import KMeans
+from molfeat.trans import MoleculeTransformer
+from molfeat.trans.fp import FPVecTransformer
+import datamol as dm
 import numpy as np
 import pandas as pd
 from openadmet.models.split.split_base import SplitterBase, splitters
 from useful_rdkit_utils import (
-    get_kmeans_clusters,
     get_butina_clusters,
     get_bemis_murcko_clusters,
+    get_scaffold,
+    smi2numpy_fp,
 )
 
 
@@ -20,6 +25,8 @@ class ClusterSplitter(SplitterBase):
 
     method: str = "butina"
     k_clusters: int = 10
+    kmeans_fp_type: str = "morgan"
+    butina_cutoff: float = 0.65
 
     @field_validator("method", mode="before")
     @classmethod
@@ -44,7 +51,7 @@ class ClusterSplitter(SplitterBase):
 
         return self
 
-    def split(self, X, y):
+    def split(self, X, y, num_iters=1000):
         """
         Split the data into train, validation, and test sets.
 
@@ -54,6 +61,8 @@ class ClusterSplitter(SplitterBase):
             List or iterable of SMILES strings to split.
         y : Iterable[float] or pd.Series
             List or iterable of target values corresponding to the SMILES strings.
+        num_iters : int, optional
+            Number of Monte Carlo trials to minimize the deviation from target ratios. Default is 1000.
 
         Returns
         -------
@@ -69,58 +78,101 @@ class ClusterSplitter(SplitterBase):
         """
         # Get clusters based on the selected method
         if self.method == "butina":
-            clusters = get_butina_clusters(X)
+            clusters = get_butina_clusters(X, cutoff=self.butina_cutoff)
         elif self.method == "bemis-murcko":
             clusters = get_bemis_murcko_clusters(X)
         elif self.method == "kmeans":
-            clusters = get_kmeans_clusters(X, n_clusters=self.k_clusters)
-
-        # No test set requested
-        if self.test_size == 0:
-            # Split into train and val
-            X_train, X_val, y_train, y_val = train_test_split(
-                X,
-                y,
-                train_size=None,
-                test_size=int(self.val_size * X.shape[0]),
+            logging.warning(
+                "KMeans clustering is NOT DETERMINISTIC with random seed across platforms."
+            )
+            km = KMeans(
+                n_clusters=self.k_clusters,
+                n_init=1,
                 random_state=self.random_state,
-                stratify=clusters,
+                algorithm="lloyd",
             )
-            return X_train, X_val, None, y_train, y_val, None
+            vec_featurizer = FPVecTransformer(self.kmeans_fp_type)
+            transformer = MoleculeTransformer(
+                vec_featurizer,
+                parallel_kwargs={"progress": False},
+            )
+            with dm.without_rdkit_log():
+                feat, _ = transformer(X, ignore_errors=True)
+            fp_list = list(np.squeeze(feat))
+            clusters = km.fit_predict(np.stack(fp_list, dtype=np.float64))
 
-        # Split into train+val and test
-        X_train_val, X_test, y_train_val, y_test = train_test_split(
-            X,
-            y,
-            train_size=None,
-            test_size=int(self.test_size * X.shape[0]),
-            random_state=self.random_state,
-            stratify=clusters,
+        # Group X into subarrays based on cluster assignments
+        unique_clusters = np.unique(clusters)
+        subarrays_X = [X[clusters == cluster] for cluster in unique_clusters]
+        subarrays_y = [y[clusters == cluster] for cluster in unique_clusters]
+        n_subarrays = len(subarrays_X)
+
+        # Set subarray data
+        lengths = np.array([len(arr) for arr in subarrays_X])
+        total_elements = lengths.sum()
+        indices = np.arange(n_subarrays)
+        ratios = [self.train_size, self.val_size, self.test_size]
+        ratios = np.cumsum(ratios)[:2]
+        target_counts = (ratios * total_elements).astype(int)
+
+        best_split = None
+        min_error = float("inf")
+        rng = np.random.default_rng(self.random_state)
+
+        # Search for best set of clusters to split with specified sizes
+        for _ in range(num_iters):
+            shuffled_indices = rng.permutation(indices)
+
+            # Calculate cumulative sum of lengths in this shuffled order
+            shuffled_lengths = lengths[shuffled_indices]
+            counts = np.cumsum(shuffled_lengths)
+
+            # Searchsorted finds the first index where cum_counts >= target
+            split_1 = np.searchsorted(counts, target_counts[0])
+            split_2 = np.searchsorted(counts, target_counts[1])
+
+            # Look at how far the actual cut points are from ideal targets
+            error = abs(counts[split_1] - target_counts[0]) + abs(
+                counts[split_2] - target_counts[1]
+            )
+
+            if error < min_error:
+                min_error = error
+                best_split = (shuffled_indices, split_1, split_2)
+
+        best_indices, s1, s2 = best_split
+
+        train_idxs = best_indices[: s1 + 1]
+        val_idxs = best_indices[s1 + 1 : s2 + 1]
+        test_idxs = best_indices[s2 + 1 :]
+
+        # Retrieve train, val, and test sets for X and y separately
+        X_train, X_val, X_test = retrieve_data_by_idx(
+            subarrays_X, [train_idxs, val_idxs, test_idxs]
+        )
+        y_train, y_val, y_test = retrieve_data_by_idx(
+            subarrays_y, [train_idxs, val_idxs, test_idxs]
         )
 
-        # No validation set requested, return train(+val) and test sets
-        if self.val_size == 0:
-            return X_train_val, None, X_test, y_train_val, None, y_test
-
-        # Get new clusters based on the selected method
-        if self.method == "butina":
-            split_clusters = get_butina_clusters(X_train_val)
-        elif self.method == "bemis-murcko":
-            split_clusters = get_bemis_murcko_clusters(X_train_val)
-        elif self.method == "kmeans":
-            split_clusters = get_kmeans_clusters(
-                X_train_val, n_clusters=self.k_clusters
+        if (
+            self.train_size != len(X_train)
+            or self.val_size != len(X_val) / total_elements
+            or self.test_size != len(X_test) / total_elements
+        ):
+            logging.warning(
+                f"Train/val/test sizes DO NOT match input requests due to cluster sizes: Train: {self.train_size / total_elements}, Val: {self.val_size / total_elements}, Test: {self.test_size / total_elements}"
             )
-
-        # Split train+val into train and val sets
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_train_val,
-            y_train_val,
-            train_size=None,
-            test_size=int(self.val_size * X.shape[0]),
-            random_state=self.random_state,
-            stratify=split_clusters,
-        )
 
         # Return train, val and test sets
-        return X_train, X_val, X_test, y_train, y_val, y_test
+        return X_train, X_val, X_test, y_train, y_val, y_test, clusters
+
+
+def retrieve_data_by_idx(subarrays, all_inds):
+    """Retrieve data based on indices."""
+    to_return = []
+    for idxs in all_inds:
+        if len(idxs) == 0:
+            to_return.append(None)
+        else:
+            to_return.append(np.concatenate([subarrays[i] for i in idxs]))
+    return to_return
