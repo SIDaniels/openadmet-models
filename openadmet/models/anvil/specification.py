@@ -15,7 +15,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 from openadmet.models.active_learning.ensemble_base import (
     get_ensemble_class,
 )
-from openadmet.models.anvil import Drivers
+from openadmet.models.drivers import DriverType
 from openadmet.models.architecture.model_base import get_mod_class
 from openadmet.models.eval.eval_base import get_eval_class
 from openadmet.models.features.feature_base import get_featurizer_class
@@ -392,9 +392,7 @@ class Metadata(SpecBase):
     version: Literal["v1"] = Field(
         ..., description="The version of the metadata schema."
     )
-    driver: str = Field(
-        Drivers.SKLEARN.value, description="The driver for the workflow."
-    )
+    driver: str = Field("sklearn", description="The driver for the workflow.")
 
     name: str = Field(..., description="The name of the workflow.")
     build_number: int = Field(
@@ -727,7 +725,11 @@ class AnvilSpecification(BaseModel):
         # Import here to avoid circular import
         from openadmet.models.anvil.workflow import _DRIVER_TO_CLASS
 
-        return _DRIVER_TO_CLASS[self.metadata.driver](
+        # Pull driver from associated trainer to choose the correct workflow
+        trainer_class = self.procedure.train.to_class()
+        driver = _DRIVER_TO_CLASS[trainer_class._driver_type]
+
+        return driver(
             metadata=self.metadata,
             data_spec=self.data,
             model=self.procedure.model.to_class(),

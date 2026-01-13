@@ -35,12 +35,6 @@ descriptive tags.
 This section ensures that workflows are well-documented and easily identifiable.
 Many of these fields are purely descriptive and do not affect the workflow's execution.
 
-Workflows are divided into "drivers" which specify the backend framework to be used.
-Currently supported drivers are ``pytorch``, ``sklearn``, and ``pytorch_ensemble``.
-The ``driver`` field must be set accordingly to ensure compatibility with the chosen featurizer, model and trainer.
-In short ``pytorch`` is used for deep learning models, ``sklearn`` for traditional machine learning models (and their ensembles),
-and ``pytorch_ensemble`` for training ensembles of deep learning models.
-
 .. code-block:: yaml
    metadata:
      authors: Author Name
