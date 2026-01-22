@@ -333,6 +333,7 @@ class RegressionPlots(EvalBase):
     plots: dict = {}
     min_val: float = Field(None, description="Minimum value for the axes")
     max_val: float = Field(None, description="Maximum value for the axes")
+    fit_reg: bool = Field(False, description="Whether to fit regression line")
     use_wandb: bool = Field(False, description="Whether to use wandb")
     dpi: int = Field(300, description="DPI for the plot")
 
@@ -426,6 +427,7 @@ class RegressionPlots(EvalBase):
                         min_val=self.min_val,
                         max_val=self.max_val,
                         plot_errbars=self.plot_errbars,
+                        fit_reg=self.fit_reg,
                     )
         return self.plot_data
 
@@ -444,7 +446,7 @@ class RegressionPlots(EvalBase):
         pXC50=False,
         min_val=None,
         max_val=None,
-        fit_reg=True,
+        fit_reg=False,
         plot_errbars=False,
     ):
         """
