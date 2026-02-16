@@ -18,6 +18,7 @@ from pydantic import model_validator
 
 from openadmet.models.drivers import DriverType
 from openadmet.models.anvil.workflow_base import AnvilWorkflowBase
+from openadmet.models.features.pairwise_featurizer import PairwiseFeaturizer
 
 
 def _safe_to_numpy(X):
@@ -737,7 +738,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         logger.info("Data featurized")
 
         kwargs = {}
-        if self.feat.type == "PairwiseFeaturizer":
+        if isinstance(self.feat, PairwiseFeaturizer):
             kwargs["input_dim"] = train_dataset[0][0].shape[
                 -1
             ]  # this is the dimension of # of features, e.g. 1024 for ECFP4, variable for descriptors
