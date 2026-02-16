@@ -224,10 +224,10 @@ class AnvilWorkflow(AnvilWorkflowBase):
         recipe_components.mkdir(parents=True, exist_ok=True)
         if self.parent_spec is not None:
             self.parent_spec.to_multi_yaml(
-            metadata_yaml=recipe_components / "metadata.yaml",
-            procedure_yaml=recipe_components / "procedure.yaml",
-            data_yaml=recipe_components / "data.yaml",
-            report_yaml=recipe_components / "eval.yaml",
+                metadata_yaml=recipe_components / "metadata.yaml",
+                procedure_yaml=recipe_components / "procedure.yaml",
+                data_yaml=recipe_components / "data.yaml",
+                report_yaml=recipe_components / "eval.yaml",
             )
 
         # Log output directory information
@@ -451,10 +451,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         self, train_dataloader, val_dataloader, train_scaler, output_dir, **kwargs
     ):
         # Load model from disk
-        if (
-            self.model.param_path is not None
-            and self.model.serial_path is not None
-        ):
+        if self.model.param_path is not None and self.model.serial_path is not None:
             logger.info("Loading model from disk, overrides any specified parameters.")
             self.model = self.model.deserialize(
                 self.model.param_path,
@@ -468,9 +465,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             # Optionally freeze weights
             if self.model.freeze_weights is not None:
                 logger.info(f"Freezing model weights")
-                self.model.freeze_weights(
-                    **self.model.freeze_weights
-                )
+                self.model.freeze_weights(**self.model.freeze_weights)
                 logger.info(f"Model weights frozen")
 
         # Build model from scratch
@@ -559,9 +554,7 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                 # Optionally freeze weights
                 if self.model.freeze_weights is not None:
                     logger.info(f"Freezing weights for model {i}")
-                    self.model.freeze_weights(
-                        **self.model.freeze_weights
-                    )
+                    self.model.freeze_weights(**self.model.freeze_weights)
                     logger.info(f"Model {i} frozen")
 
             # Build model from scratch
@@ -665,11 +658,11 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         recipe_components.mkdir(parents=True, exist_ok=True)
         if self.parent_spec is not None:
             self.parent_spec.to_multi_yaml(
-            metadata_yaml=recipe_components / "metadata.yaml",
-            procedure_yaml=recipe_components / "procedure.yaml",
-            data_yaml=recipe_components / "data.yaml",
-            report_yaml=recipe_components / "eval.yaml",
-        )
+                metadata_yaml=recipe_components / "metadata.yaml",
+                procedure_yaml=recipe_components / "procedure.yaml",
+                data_yaml=recipe_components / "data.yaml",
+                report_yaml=recipe_components / "eval.yaml",
+            )
 
         # Log output directory information
         logger.info(f"Running workflow from directory {output_dir}")

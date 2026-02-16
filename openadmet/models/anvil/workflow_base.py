@@ -61,7 +61,9 @@ class AnvilWorkflowBase(BaseModel):
     ensemble: EnsembleBase | None = None
     trainer: TrainerBase
     evals: list[EvalBase]
-    parent_spec: Optional[AnvilSpecification] = None  # Optional reference to parent specification
+    parent_spec: Optional[AnvilSpecification] = (
+        None  # Optional reference to parent specification
+    )
     debug: bool = False
 
     @abstractmethod
