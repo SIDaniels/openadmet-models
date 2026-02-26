@@ -25,7 +25,7 @@ def one_invalid_smi():
 def test_descriptor_featurizer(descr_type, dtype):
     """
     Validate DescriptorFeaturizer for different descriptor types and floating point precisions.
-    
+
     This ensures that physical-chemical descriptors (like Mordred or RDKit 2D) are correctly generated
     and returned with the requested data type, which is important for downstream model compatibility.
     """
@@ -38,7 +38,7 @@ def test_descriptor_featurizer(descr_type, dtype):
 def test_descriptor_one_invalid(one_invalid_smi):
     """
     Ensure DescriptorFeaturizer robustly handles invalid SMILES strings.
-    
+
     The featurizer should skip invalid molecules and return indices corresponding only to the valid ones.
     This prevents the entire pipeline from crashing due to a single bad input.
     """
@@ -54,7 +54,7 @@ def test_descriptor_one_invalid(one_invalid_smi):
 def test_fingerprint_featurizer(smiles, fp_type, dtype):
     """
     Validate FingerprintFeaturizer for different fingerprint types (ECFP, FCFP) and precisions.
-    
+
     This verifies that structural fingerprints are correctly generated with the expected vector size (2000)
     and data type.
     """
@@ -68,7 +68,7 @@ def test_fingerprint_featurizer(smiles, fp_type, dtype):
 def test_fingerprint_one_invalid(one_invalid_smi):
     """
     Ensure FingerprintFeaturizer robustly handles invalid SMILES strings.
-    
+
     Similar to descriptors, it should filter out invalid entries and return correct indices for valid ones.
     """
     featurizer = FingerprintFeaturizer(fp_type="ecfp")
@@ -81,7 +81,7 @@ def test_fingerprint_one_invalid(one_invalid_smi):
 def test_feature_concatenator(smiles):
     """
     Validate that FeatureConcatenator correctly combines multiple feature sets (descriptors + fingerprints).
-    
+
     This ensures that different feature representations can be stacked horizontally for the same molecules,
     providing a richer feature set for training.
     """
@@ -96,10 +96,10 @@ def test_feature_concatenator(smiles):
 def test_feature_concatenator_drops_intersection(mocker):
     """
     Verify that FeatureConcatenator only keeps molecules valid across ALL featurizers.
-    
+
     If one featurizer fails for molecule A and another fails for molecule B, the concatenator
     must drop both A and B to maintain feature alignment.
-    
+
     We mock the underlying featurizers to control which indices fail, avoiding the need for
     complex real-world molecules that fail specific featurizers. This isolates the intersection logic.
     """
@@ -141,10 +141,10 @@ def test_feature_concatenator_order_independence(smiles):
     """
     Ensure that changing the order of featurizers in the list does not affect the validity of the operation
     (though it will change column order).
-    
+
     Note: This test actually checks that the result objects are valid arrays and indices match,
     but it asserts equality of X1 and X2 which would FAIL if the feature columns are swapped.
-    Wait, the code `assert_array_equal(X1, X2)` implies the concatenation order matters? 
+    Wait, the code `assert_array_equal(X1, X2)` implies the concatenation order matters?
     Ah, the test logic compares `concat1` (Desc, FP) vs `concat2` (FP, Desc).
     If X1 == X2, then order DOES NOT matter, which is mathematically wrong for concatenation.
     However, I am only adding comments, not fixing logic. The test likely fails or mocks something I don't see,
@@ -171,7 +171,7 @@ def test_feature_concatenator_order_independence(smiles):
 def test_pairwise_featurizer(smiles):
     """
     Validate PairwiseFeaturizer in 'full' mode (all-pairs).
-    
+
     This tests that features are generated for every pair of molecules and that target values
     (differences) are correctly computed.
     """

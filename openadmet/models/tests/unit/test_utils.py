@@ -4,7 +4,7 @@ import traceback
 def click_success(result):
     """
     Helper function to verify that a Click command executed successfully (exit code 0).
-    
+
     If the command failed, this function prints the output and traceback to aid in debugging
     before returning False.
     """

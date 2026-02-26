@@ -370,4 +370,3 @@ class PosthocBinaryPlots(EvalBase):
         for plot_tag, plot in self.plot_data.items():
             plot_path = output_dir / f"{plot_tag}.png"
             plot.savefig(plot_path, dpi=self.dpi)
-

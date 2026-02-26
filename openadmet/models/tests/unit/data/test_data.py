@@ -7,7 +7,7 @@ from openadmet.models.tests.unit.datafiles import intake_cat, nan_data, test_csv
 def test_data_spec_from_csv():
     """
     Validate loading data from a CSV file via DataSpec.
-    
+
     Ensures that the data loader correctly reads the specified CSV, extracts the target and SMILES columns,
     and returns them as expected.
     """
@@ -26,7 +26,7 @@ def test_data_spec_from_csv():
 def test_data_spec_from_intake():
     """
     Validate loading data from an Intake catalog.
-    
+
     Intake allows for declarative data loading. This test checks that DataSpec can correctly interface
     with an Intake catalog to retrieve data.
     """
@@ -46,7 +46,7 @@ def test_data_spec_from_intake():
 def test_data_spec_dropna(dropna, expected_length):
     """
     Test the `dropna` functionality in DataSpec.
-    
+
     Verifies that rows with missing values in target columns are dropped when dropna=True,
     and preserved when dropna=False. This is critical for handling real-world datasets which often contain gaps.
     """

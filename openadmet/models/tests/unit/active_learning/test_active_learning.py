@@ -11,7 +11,7 @@ from openadmet.models.architecture.dummy import DummyRegressorModel
 def toy_data():
     """
     Generate synthetic regression data for testing committee models.
-    
+
     This fixture creates a simple linear relationship with noise to verify that the
     ensemble can learn and predict reasonable values.
     """
@@ -40,7 +40,7 @@ def dummy_models():
 def trained_committee(dummy_models, toy_data):
     """
     Create a trained CommitteeRegressor using bootstrapped data.
-    
+
     This fixture trains multiple dummy models on bootstrapped subsets of the training data
     to simulate a real ensemble training process, allowing for testing of prediction and uncertainty estimation.
     """
@@ -58,7 +58,7 @@ def trained_committee(dummy_models, toy_data):
 def test_committee_query_predict(trained_committee, query_strategy):
     """
     Validate that the committee can query samples using all registered acquisition functions.
-    
+
     This ensures that the query interface works consistent across strategies and that
     predictions and uncertainty estimates are returned in the correct shape.
     """
@@ -91,7 +91,7 @@ def test_invalid_calibration_method_raises(trained_committee):
 def test_calibration_paths(trained_committee, calibration_method):
     """
     Verify that uncertainty calibration methods can be applied successfully.
-    
+
     This checks that the calibration state is updated and that predictions remain valid
     after calibration (shapes are preserved).
     """
@@ -105,7 +105,7 @@ def test_calibration_paths(trained_committee, calibration_method):
 def test_train_and_train_validation(toy_data):
     """
     Validate the high-level train method for creating a CommitteeRegressor.
-    
+
     This tests the end-to-end training process, ensuring that the correct number of models
     are created and that the resulting ensemble can make predictions.
     """
@@ -126,7 +126,7 @@ def test_train_and_train_validation(toy_data):
 def test_save_load_roundtrip(tmp_path, trained_committee, calibration_method):
     """
     Verify that a CommitteeRegressor can be saved and loaded correctly.
-    
+
     This ensures persistence of the ensemble, including individual models and calibration state.
     It verifies that predictions before save and after load are identical.
     """
@@ -160,7 +160,7 @@ def test_serialize_deserialize_roundtrip(
 ):
     """
     Verify that a CommitteeRegressor can be serialized and deserialized via JSON/pickle.
-    
+
     This tests the serialization pathway used for distributed training or registry storage,
     ensuring full state recovery including calibration.
     """

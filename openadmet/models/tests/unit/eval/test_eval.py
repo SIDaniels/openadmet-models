@@ -22,7 +22,7 @@ def test_get_eval_class():
 def test_regression_metrics():
     """
     Validate calculation of standard regression metrics (MSE, MAE, R2).
-    
+
     This test uses simple synthetic data to ensure that the mathematical implementations
     of these metrics are correct and return the expected values.
     """
@@ -40,7 +40,7 @@ def test_regression_metrics():
 def test_regression_plots():
     """
     Verify that regression plotting functions return valid figure objects.
-    
+
     This ensures that regression plots (JointGrid for parity, Figure for CI) are generated
     without error, which is important for model reporting.
     """
@@ -60,7 +60,7 @@ def test_regression_plots():
 def test_classification_metrics():
     """
     Validate calculation of classification metrics (Accuracy, Precision, Recall, F1, AUC).
-    
+
     This ensures that for binary classification tasks, the metrics are computed correctly based on
     predicted probabilities and ground truth labels.
     """
@@ -101,7 +101,7 @@ def test_classification_plots():
 def test_posthoc_eval_metrics():
     """
     Test post-hoc binary metrics utility functions.
-    
+
     Verifies that we can calculate precision and recall at a specific cutoff threshold from
     regression-like outputs (or probabilities).
     """

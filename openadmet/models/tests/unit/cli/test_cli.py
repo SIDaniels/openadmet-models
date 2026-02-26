@@ -32,7 +32,7 @@ def test_subcommand_runnable(runner, args):
 def test_predict_cli_invokes_inference(tmp_path, runner, mocker):
     """
     Validate that the 'predict' subcommand correctly parses arguments and calls the underlying inference function.
-    
+
     We mock `inference_func` to avoid loading real models (which is heavy and requires trained artifacts).
     This ensures that the CLI layer correctly passes paths, column names, and flags to the logic layer.
     """
@@ -71,7 +71,7 @@ def test_predict_cli_invokes_inference(tmp_path, runner, mocker):
 def test_anvil_cli_invokes_workflow(tmp_path, runner, mocker):
     """
     Validate that the 'anvil' subcommand correctly initializes and runs a workflow from a recipe.
-    
+
     We mock the `AnvilSpecification` and workflow execution to verify that the CLI correctly handles
     recipe paths and output directories without actually running a full ML training job.
     """
@@ -117,7 +117,7 @@ def test_anvil_cli_invokes_workflow(tmp_path, runner, mocker):
 def test_validate_aq_fxns_success(aq_fxns, beta, best_y, xi, expected):
     """
     Verify that valid combinations of acquisition function arguments are correctly parsed into a configuration dict.
-    
+
     This tests the CLI argument validation logic for active learning parameters.
     """
     assert predict_cli_module._validate_aq_fxns(aq_fxns, beta, best_y, xi) == expected
@@ -134,7 +134,7 @@ def test_validate_aq_fxns_success(aq_fxns, beta, best_y, xi, expected):
 def test_validate_aq_fxns_errors(aq_fxns, beta, best_y, xi, error_message):
     """
     Ensure that invalid acquisition function arguments trigger appropriate validation errors.
-    
+
     This prevents users from running predictions with ambiguous or incomplete active learning settings.
     """
     with pytest.raises(ValueError, match=error_message):
