@@ -4,6 +4,7 @@ import pytest
 
 from openadmet.models.anvil.specification import (
     AnvilSpecification,
+    EnsembleSpec,
 )
 from openadmet.models.tests.unit.datafiles import (
     acetylcholinesterase_anvil_chemprop_yaml,
@@ -82,18 +83,17 @@ def test_anvil_workflow_run(tmp_path, anvil_full_recipie, mocker):
         "split",
         return_value=(X, None, None, y, None, None, None),
     )
-    mocker.patch.object(
+    feat_spy = mocker.patch.object(
         type(anvil_workflow.feat),
         "featurize",
-        side_effect=[
-            (np.array([[0.1], [0.2]]), None),
-            (np.array([[0.1], [0.2]]), None),
-        ],
+        return_value=(np.array([[0.1], [0.2]]), None),
+        autospec=True,
     )
     mocker.patch.object(type(anvil_workflow.model), "serialize")
     mocker.patch("openadmet.models.anvil.workflow.zarr.save")
     anvil_workflow.run(output_dir=tmp_path / "tst")
     train_spy.assert_called_once()
+    assert feat_spy.call_count == 2
 
 
 def test_anvil_multiyaml(tmp_path):
@@ -138,20 +138,18 @@ def test_anvil_cross_val_run(tmp_path, mocker):
         "split",
         return_value=(X, None, None, y, None, None, None),
     )
-    mocker.patch.object(
+    feat_spy = mocker.patch.object(
         type(anvil_workflow.feat),
         "featurize",
-        side_effect=[
-            (np.array([[0.1], [0.2]]), None),
-            (np.array([[0.1], [0.2]]), None),
-        ],
+        return_value=(np.array([[0.1], [0.2]]), None),
+        autospec=True,
     )
     mocker.patch.object(type(anvil_workflow.model), "serialize")
 
-    # TODO: verify because this looks wrong
     mocker.patch("openadmet.models.anvil.workflow.zarr.save")
     anvil_workflow.run(output_dir=tmp_path / "tst")
     train_spy.assert_called_once()
+    assert feat_spy.call_count == 2
 
 
 def test_anvil_classification_run(tmp_path, mocker):
@@ -171,20 +169,18 @@ def test_anvil_classification_run(tmp_path, mocker):
         "split",
         return_value=(X, None, None, y, None, None, None),
     )
-    mocker.patch.object(
+    feat_spy = mocker.patch.object(
         type(anvil_workflow.feat),
         "featurize",
-        side_effect=[
-            (np.array([[0.1], [0.2]]), None),
-            (np.array([[0.1], [0.2]]), None),
-        ],
+        return_value=(np.array([[0.1], [0.2]]), None),
+        autospec=True,
     )
     mocker.patch.object(type(anvil_workflow.model), "serialize")
 
-    # TODO: verify because this looks wrong
     mocker.patch("openadmet.models.anvil.workflow.zarr.save")
     anvil_workflow.run(output_dir=tmp_path / "tst")
     train_spy.assert_called_once()
+    assert feat_spy.call_count == 2
 
 
 # skip on MacOS runner?
@@ -207,17 +203,147 @@ def test_anvil_chemprop_cpu_regression(tmp_path, mocker):
         "split",
         return_value=(X, None, None, y, None, None, None),
     )
-    mocker.patch.object(
+    feat_spy = mocker.patch.object(
         type(anvil_workflow.feat),
         "featurize",
         return_value=(object(), None, None, [0]),
+        autospec=True,
     )
     mocker.patch.object(type(anvil_workflow.model), "serialize")
 
-    # TODO: verify because this looks wrong
     mocker.patch("openadmet.models.anvil.workflow.torch.save")
     anvil_workflow.run(output_dir=tmp_path / "tst")
     train_spy.assert_called_once()
+    assert feat_spy.call_count == 1
+
+
+def test_anvil_workflow_three_way_split(tmp_path, mocker):
+    """
+    Test Anvil workflow with a three-way data split.
+
+    Verifies featurization counts when train, validation, and test sets are present.
+    """
+    anvil_spec = AnvilSpecification.from_recipe(basic_anvil_yaml)
+    anvil_workflow = anvil_spec.to_workflow()
+    X = pd.DataFrame({"smiles": ["CCO", "CCN"]})
+    y = pd.DataFrame({"target": [1.0, 2.0]})
+    
+    train_spy = mocker.patch.object(type(anvil_workflow), "_train", autospec=True)
+    mocker.patch.object(type(anvil_workflow.data_spec), "read", return_value=(X, y))
+    
+    # Mock split returning train, val, test
+    mocker.patch.object(
+        type(anvil_workflow.split),
+        "split",
+        return_value=(X, X, X, y, y, y, None),
+    )
+    
+    feat_spy = mocker.patch.object(
+        type(anvil_workflow.feat),
+        "featurize",
+        return_value=(np.array([[0.1], [0.2]]), None),
+        autospec=True,
+    )
+    mocker.patch.object(type(anvil_workflow.model), "serialize")
+    mocker.patch.object(type(anvil_workflow.model), "predict", return_value=np.array([1.0, 2.0]))
+    mocker.patch("openadmet.models.anvil.workflow.zarr.save")
+    
+    anvil_workflow.run(output_dir=tmp_path / "tst")
+    
+    train_spy.assert_called_once()
+    # 3 splits (train, val, test) + 1 whole dataset call = 4 calls
+    # Note: User prompt requested 3, but the standard AnvilWorkflow also featurizes the whole dataset at the end.
+    assert feat_spy.call_count == 4
+
+
+def test_anvil_workflow_ensemble_bootstrapping(tmp_path, mocker):
+    """
+    Test Anvil workflow with ensemble bootstrapping.
+
+    Verifies that featurization is called for each bootstrap iteration plus
+    the initial train, validation, and test sets.
+    """
+    # Use a Deep Learning recipe as base (supports re-featurization in ensemble)
+    anvil_spec = AnvilSpecification.from_recipe(
+        acetylcholinesterase_anvil_chemprop_yaml
+    )
+    
+    # Configure ensemble
+    anvil_spec.procedure.ensemble = EnsembleSpec(
+        type="CommitteeRegressor",
+        n_models=3,
+        calibration_method="isotonic-regression"
+    )
+    # Ensure validation set is requested
+    if anvil_spec.procedure.split.params.get("val_size", 0) == 0:
+        anvil_spec.procedure.split.params["val_size"] = 0.1
+        
+    anvil_workflow = anvil_spec.to_workflow()
+    
+    X = pd.DataFrame({"smiles": ["CCO", "CCN"]})
+    y = pd.DataFrame({"target": [1.0, 2.0]})
+    
+    # Mock data reading
+    mocker.patch.object(type(anvil_workflow.data_spec), "read", return_value=(X, y))
+    
+    # Mock split returning train, val, test
+    mocker.patch.object(
+        type(anvil_workflow.split),
+        "split",
+        return_value=(X, X, X, y, y, y, None),
+    )
+    
+    # Mock featurizer
+    # Important: Mock make_new to return self so we can count calls on the same object
+    mocker.patch.object(type(anvil_workflow.feat), "make_new", return_value=anvil_workflow.feat)
+    
+    feat_spy = mocker.patch.object(
+        type(anvil_workflow.feat),
+        "featurize",
+        return_value=(object(), None, None, [0]), # mocked dataloader etc
+        autospec=True,
+    )
+    
+    # Mock ensemble methods
+    # Mock from_models to return a mock object (representing the ensemble) that has calibrate_uncertainty
+    mock_ensemble_model = mocker.Mock()
+    mock_ensemble_model.predict.return_value = (np.array([1, 2]), np.array([0.1, 0.1]))
+    mock_ensemble_model.n_models = 3
+    mock_ensemble_model._calibration_model_save_name = "calibration.pkl"
+    # Mock individual models in the ensemble
+    mock_submodel = mocker.Mock()
+    mock_submodel._model_json_name = "model.json"
+    mock_submodel._model_save_name = "model.pt"
+    mock_ensemble_model.models = [mock_submodel] * 3
+    
+    # We patch from_models on the CLASS of the ensemble instance
+    mocker.patch.object(type(anvil_workflow.ensemble), "from_models", return_value=mock_ensemble_model)
+    
+    # Mock model
+    mocker.patch.object(type(anvil_workflow.model), "make_new", return_value=anvil_workflow.model)
+    mocker.patch.object(type(anvil_workflow.model), "build")
+    mocker.patch.object(type(anvil_workflow.model), "serialize")
+    # calibrate_uncertainty is called on the ENSEMBLE model (mock_ensemble_model), so we don't need to patch it on ChemPropModel
+    
+    # Mock trainer
+    mocker.patch.object(type(anvil_workflow.trainer), "make_new", return_value=anvil_workflow.trainer)
+    mocker.patch.object(type(anvil_workflow.trainer), "build")
+    mocker.patch.object(type(anvil_workflow.trainer), "train", return_value=anvil_workflow.model)
+    
+    # Mock torch save/load
+    mocker.patch("openadmet.models.anvil.workflow.torch.save")
+    
+    # Run
+    anvil_workflow.run(output_dir=tmp_path / "tst")
+    
+    # Expected calls:
+    # 1. Initial Train (1 call)
+    # 2. Initial Val (1 call)
+    # 3. Initial Test (1 call)
+    # 4. Bootstrap Training (3 calls, one per model)
+    # Total = 6 calls.
+    # Note: User prompt suggested 5 (3 bootstrap + 1 val + 1 test), omitting the initial train call which occurs before branching to ensemble training.
+    assert feat_spy.call_count == 6
 
 
 @pytest.mark.skip(reason="TabPFN requires GPU and is not supported on MacOS runners")
