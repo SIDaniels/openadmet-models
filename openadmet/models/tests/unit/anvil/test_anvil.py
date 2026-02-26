@@ -16,6 +16,7 @@ from openadmet.models.tests.unit.datafiles import (
     tabpfn_anvil_classification_yaml,
 )
 
+
 def all_anvil_full_recipes():
     return [
         basic_anvil_yaml,
@@ -63,7 +64,10 @@ def test_anvil_workflow_run(tmp_path, anvil_full_recipie, mocker):
     mocker.patch.object(
         type(anvil_workflow.feat),
         "featurize",
-        side_effect=[(np.array([[0.1], [0.2]]), None), (np.array([[0.1], [0.2]]), None)],
+        side_effect=[
+            (np.array([[0.1], [0.2]]), None),
+            (np.array([[0.1], [0.2]]), None),
+        ],
     )
     mocker.patch.object(type(anvil_workflow.model), "serialize")
     mocker.patch("openadmet.models.anvil.workflow.zarr.save")
@@ -104,7 +108,10 @@ def test_anvil_cross_val_run(tmp_path, mocker):
     mocker.patch.object(
         type(anvil_workflow.feat),
         "featurize",
-        side_effect=[(np.array([[0.1], [0.2]]), None), (np.array([[0.1], [0.2]]), None)],
+        side_effect=[
+            (np.array([[0.1], [0.2]]), None),
+            (np.array([[0.1], [0.2]]), None),
+        ],
     )
     mocker.patch.object(type(anvil_workflow.model), "serialize")
     mocker.patch("openadmet.models.anvil.workflow.zarr.save")
@@ -127,7 +134,10 @@ def test_anvil_classification_run(tmp_path, mocker):
     mocker.patch.object(
         type(anvil_workflow.feat),
         "featurize",
-        side_effect=[(np.array([[0.1], [0.2]]), None), (np.array([[0.1], [0.2]]), None)],
+        side_effect=[
+            (np.array([[0.1], [0.2]]), None),
+            (np.array([[0.1], [0.2]]), None),
+        ],
     )
     mocker.patch.object(type(anvil_workflow.model), "serialize")
     mocker.patch("openadmet.models.anvil.workflow.zarr.save")

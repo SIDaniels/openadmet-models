@@ -18,7 +18,9 @@ def test_toplevel_runnable(runner):
     assert click_success(result)
 
 
-@pytest.mark.parametrize("args", [["anvil", "--help"], ["compare", "--help"], ["predict", "--help"]])
+@pytest.mark.parametrize(
+    "args", [["anvil", "--help"], ["compare", "--help"], ["predict", "--help"]]
+)
 def test_subcommand_runnable(runner, args):
     result = runner.invoke(cli, args)
     assert click_success(result)
@@ -61,7 +63,9 @@ def test_anvil_cli_invokes_workflow(tmp_path, runner, mocker):
     mock_workflow = mocker.Mock()
     mock_spec = mocker.Mock()
     mock_spec.to_workflow.return_value = mock_workflow
-    mock_from_recipe = mocker.patch.object(anvil_cli_module.AnvilSpecification, "from_recipe", return_value=mock_spec)
+    mock_from_recipe = mocker.patch.object(
+        anvil_cli_module.AnvilSpecification, "from_recipe", return_value=mock_spec
+    )
 
     result = runner.invoke(
         cli,

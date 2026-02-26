@@ -62,7 +62,6 @@ def test_feature_concatenator(smiles):
     assert_array_equal(idx, np.arange(3))
 
 
-
 def test_feature_concatenator_drops_intersection(mocker):
     # Arrange
     desc_featurizer = DescriptorFeaturizer(descr_type="mordred")
