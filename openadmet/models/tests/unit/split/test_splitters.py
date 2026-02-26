@@ -8,6 +8,7 @@ from openadmet.models.split.split_base import splitters
 
 
 def test_in_splitters():
+    """Verify that concrete splitter implementations are correctly registered in the splitters registry."""
     assert "ShuffleSplitter" in splitters
     assert "ClusterSplitter" in splitters
 
@@ -33,6 +34,13 @@ def test_in_splitters():
 def test_simple_split(
     train_size, val_size, test_size, expected_train, expected_val, expected_test, error
 ):
+    """
+    Validate that ShuffleSplitter correctly partitions data according to specified ratios.
+    
+    This test verifies both successful splits and error handling for invalid configurations.
+    Correct splitting ensures that training, validation, and test sets are of the expected size
+    and are mutually exclusive, which is critical for valid model evaluation.
+    """
     if error is True:
         with pytest.raises(ValueError):
             splitter = ShuffleSplitter(
@@ -47,6 +55,7 @@ def test_simple_split(
         train_size=train_size, val_size=val_size, test_size=test_size, random_state=42
     )
 
+    # Generate synthetic random data for testing split logic
     X = np.random.rand(100, 10)
     y = np.random.rand(100)
 
@@ -87,6 +96,14 @@ def test_simple_split(
 
 @pytest.fixture
 def synthetic_cluster_data():
+    """
+    Provide a synthetic dataset with structural diversity for testing cluster splitting.
+    
+    This fixture returns a set of SMILES strings representing different chemical scaffolds
+    (benzenes, pyridines, cyclohexanes, furans, thiophenes) and corresponding target values.
+    Using diverse scaffolds ensures that clustering algorithms (like Butina or Bemis-Murcko)
+    can meaningfully group molecules, allowing verification that splits respect cluster boundaries.
+    """
     base_smiles = [
         "Cc1ccccc1",
         "CCc1ccccc1",
@@ -203,6 +220,13 @@ def synthetic_cluster_data():
     ],
 )
 def test_cluster_split_synthetic_data(method, synthetic_cluster_data):
+    """
+    Validate ClusterSplitter functionality with different clustering methods.
+    
+    This test ensures that molecular data is split such that training, validation, and test sets
+    contain mutually exclusive molecules (no data leakage). It verifies split sizes are approximately
+    correct and that structural separation is maintained.
+    """
     X, y = synthetic_cluster_data
     splitter = ClusterSplitter(
         train_size=0.7,
@@ -242,6 +266,7 @@ def test_cluster_split_synthetic_data(method, synthetic_cluster_data):
 
 
 def test_cluster_split_invalid_size_configuration():
+    """Ensure ClusterSplitter raises ValueError for invalid split size configurations (e.g., sum != 1.0)."""
     with pytest.raises(ValueError):
         ClusterSplitter(
             train_size=1.0,
@@ -253,6 +278,7 @@ def test_cluster_split_invalid_size_configuration():
 
 
 def test_cluster_split_invalid_method():
+    """Ensure ClusterSplitter raises ValueError when initialized with an unknown clustering method."""
     with pytest.raises(ValueError):
         ClusterSplitter(
             train_size=0.7,

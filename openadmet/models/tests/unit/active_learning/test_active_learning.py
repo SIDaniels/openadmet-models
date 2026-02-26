@@ -9,6 +9,12 @@ from openadmet.models.architecture.dummy import DummyRegressorModel
 
 @pytest.fixture
 def toy_data():
+    """
+    Generate synthetic regression data for testing committee models.
+    
+    This fixture creates a simple linear relationship with noise to verify that the
+    ensemble can learn and predict reasonable values.
+    """
     rng = np.random.default_rng(42)
     X = rng.normal(size=(120, 3))
     y = (
@@ -22,6 +28,7 @@ def toy_data():
 
 @pytest.fixture
 def dummy_models():
+    """Create a list of initialized DummyRegressorModel instances for building a committee."""
     models = []
     for _ in range(5):
         model = DummyRegressorModel(strategy="mean")
@@ -31,6 +38,12 @@ def dummy_models():
 
 @pytest.fixture
 def trained_committee(dummy_models, toy_data):
+    """
+    Create a trained CommitteeRegressor using bootstrapped data.
+    
+    This fixture trains multiple dummy models on bootstrapped subsets of the training data
+    to simulate a real ensemble training process, allowing for testing of prediction and uncertainty estimation.
+    """
     X_train, X_val, _, y_train, y_val, _ = toy_data
     rng = np.random.default_rng(123)
     for model in dummy_models:
@@ -43,6 +56,12 @@ def trained_committee(dummy_models, toy_data):
 
 @pytest.mark.parametrize("query_strategy", sorted(_ACQUISITION_FUNCTIONS.keys()))
 def test_committee_query_predict(trained_committee, query_strategy):
+    """
+    Validate that the committee can query samples using all registered acquisition functions.
+    
+    This ensures that the query interface works consistent across strategies and that
+    predictions and uncertainty estimates are returned in the correct shape.
+    """
     committee, X_val, _ = trained_committee
     y_query = committee.query(X_val, query_strategy=query_strategy)
     y_pred, y_pred_std = committee.predict(X_val, return_std=True)
@@ -53,12 +72,14 @@ def test_committee_query_predict(trained_committee, query_strategy):
 
 
 def test_invalid_query_strategy_raises(trained_committee):
+    """Ensure ValueError is raised when an invalid query strategy is requested."""
     committee, X_val, _ = trained_committee
     with pytest.raises(ValueError):
         committee.query(X_val, query_strategy="not-a-strategy")
 
 
 def test_invalid_calibration_method_raises(trained_committee):
+    """Ensure ValueError is raised when an invalid uncertainty calibration method is requested."""
     committee, X_val, y_val = trained_committee
     with pytest.raises(ValueError):
         committee.calibrate_uncertainty(X_val, y_val, method="not-a-method")
@@ -68,6 +89,12 @@ def test_invalid_calibration_method_raises(trained_committee):
     "calibration_method", ["isotonic-regression", "scaling-factor"]
 )
 def test_calibration_paths(trained_committee, calibration_method):
+    """
+    Verify that uncertainty calibration methods can be applied successfully.
+    
+    This checks that the calibration state is updated and that predictions remain valid
+    after calibration (shapes are preserved).
+    """
     committee, X_val, y_val = trained_committee
     committee.calibrate_uncertainty(X_val, y_val, method=calibration_method)
     assert committee.calibrated
@@ -76,6 +103,12 @@ def test_calibration_paths(trained_committee, calibration_method):
 
 
 def test_train_and_train_validation(toy_data):
+    """
+    Validate the high-level train method for creating a CommitteeRegressor.
+    
+    This tests the end-to-end training process, ensuring that the correct number of models
+    are created and that the resulting ensemble can make predictions.
+    """
     X_train, _, X_test, y_train, _, _ = toy_data
     committee = CommitteeRegressor.train(
         X_train, y_train, mod_class=DummyRegressorModel, n_models=4
@@ -91,6 +124,12 @@ def test_train_and_train_validation(toy_data):
     "calibration_method", ["isotonic-regression", "scaling-factor", None]
 )
 def test_save_load_roundtrip(tmp_path, trained_committee, calibration_method):
+    """
+    Verify that a CommitteeRegressor can be saved and loaded correctly.
+    
+    This ensures persistence of the ensemble, including individual models and calibration state.
+    It verifies that predictions before save and after load are identical.
+    """
     committee, X_val, y_val = trained_committee
     calibration_model_path = (
         tmp_path / "calibration_model.pkl" if calibration_method is not None else None
@@ -119,6 +158,12 @@ def test_save_load_roundtrip(tmp_path, trained_committee, calibration_method):
 def test_serialize_deserialize_roundtrip(
     tmp_path, trained_committee, calibration_method
 ):
+    """
+    Verify that a CommitteeRegressor can be serialized and deserialized via JSON/pickle.
+    
+    This tests the serialization pathway used for distributed training or registry storage,
+    ensuring full state recovery including calibration.
+    """
     committee, X_val, y_val = trained_committee
     calibration_model_path = (
         tmp_path / "calibration_model.pkl" if calibration_method is not None else None
@@ -148,6 +193,7 @@ def test_serialize_deserialize_roundtrip(
 
 
 def test_plot_uncertainty_calibration(trained_committee):
+    """Check that the uncertainty calibration plotting function runs without error."""
     committee, X_val, y_val = trained_committee
     committee.calibrate_uncertainty(X_val, y_val, method="scaling-factor")
     plot = committee.plot_uncertainty_calibration(X_val, y_val)

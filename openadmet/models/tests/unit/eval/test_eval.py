@@ -13,12 +13,19 @@ from openadmet.models.eval.regression import RegressionMetrics, RegressionPlots
 
 
 def test_get_eval_class():
+    """Verify that evaluation classes can be retrieved by name from the registry."""
     get_eval_class("RegressionMetrics")
     get_eval_class("PosthocBinaryMetrics")
     get_eval_class("ClassificationMetrics")
 
 
 def test_regression_metrics():
+    """
+    Validate calculation of standard regression metrics (MSE, MAE, R2).
+    
+    This test uses simple synthetic data to ensure that the mathematical implementations
+    of these metrics are correct and return the expected values.
+    """
     y_true = np.array([3, -0.5, 2, 7]).reshape(-1, 1)
     y_pred = np.array([2.5, 0.0, 2, 8]).reshape(-1, 1)
 
@@ -31,6 +38,12 @@ def test_regression_metrics():
 
 
 def test_regression_plots():
+    """
+    Verify that regression plotting functions return valid figure objects.
+    
+    This ensures that regression plots (JointGrid for parity, Figure for CI) are generated
+    without error, which is important for model reporting.
+    """
     y_true = np.array([3, -0.5, 2, 7]).reshape(-1, 1)
     y_pred = np.array([2.5, 0.0, 2, 8]).reshape(-1, 1)
 
@@ -45,6 +58,12 @@ def test_regression_plots():
 
 
 def test_classification_metrics():
+    """
+    Validate calculation of classification metrics (Accuracy, Precision, Recall, F1, AUC).
+    
+    This ensures that for binary classification tasks, the metrics are computed correctly based on
+    predicted probabilities and ground truth labels.
+    """
     y_true = [0, 1, 1, 0]
 
     # We pass probabilities of the class, not the class itself
@@ -63,6 +82,9 @@ def test_classification_metrics():
 
 
 def test_classification_plots():
+    """
+    Verify that classification plotting functions (ROC, PR curves) return valid figure objects.
+    """
     y_true = [0, 1, 1, 0]
     y_pred = [[1, 0], [0, 1], [0, 1], [0, 1]]
 
@@ -77,6 +99,12 @@ def test_classification_plots():
 
 
 def test_posthoc_eval_metrics():
+    """
+    Test post-hoc binary metrics utility functions.
+    
+    Verifies that we can calculate precision and recall at a specific cutoff threshold from
+    regression-like outputs (or probabilities).
+    """
     y_true = [3, -0.5, 2, 7]
     y_pred = [2.5, 0.0, 2, 8]
     cutoff = 4.0

@@ -8,7 +8,13 @@ from openadmet.models.features.mtenn import MTENNDataset, MTENNFeaturizer
 
 @pytest.fixture
 def mock_complex_features(mocker):
-    """Patch MTENN complex loading with lightweight synthetic tensors."""
+    """
+    Patch MTENN complex loading with lightweight synthetic tensors.
+    
+    We mock `_load_complexes` to avoid needing actual PDB/SDF files and heavy RDKit/OpenBabel parsing.
+    This isolates the MTENNDataset and MTENNFeaturizer logic, allowing us to verify data structuring
+    and tensor shapes without file I/O overhead.
+    """
     pos = torch.randn(5, 3)
     z = torch.tensor([6, 6, 8, 1, 1], dtype=torch.int32)
     b = torch.ones(5, dtype=torch.float32)
@@ -31,6 +37,12 @@ def mock_complex_features(mocker):
 
 
 def test_mtenn_dataset(mock_complex_features):
+    """
+    Validate that MTENNDataset correctly constructs data items from complex features.
+    
+    This ensures that the dataset class properly organizes positions, atomic numbers,
+    and masks into the dictionary format expected by MTENN models.
+    """
     pos, z, b, lig_mask = mock_complex_features
     dataset = MTENNDataset(
         ["complex_a", "complex_b"],
@@ -50,6 +62,12 @@ def test_mtenn_dataset(mock_complex_features):
 
 
 def test_mtenn_featurizer(mock_complex_features):
+    """
+    Validate the MTENNFeaturizer high-level interface.
+    
+    This checks that the featurizer correctly instantiates the dataset and data loader,
+    returning formatted batches ready for training.
+    """
     ft = MTENNFeaturizer(ligand_resname="LIG", ignore_h=True, batch_size=2, n_jobs=0)
     dataloader, idx, scaler, dataset = ft.featurize(
         ["complex_a", "complex_b"], pd.Series([42.0, 43.0])

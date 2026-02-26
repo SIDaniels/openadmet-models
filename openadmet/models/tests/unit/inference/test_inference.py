@@ -9,10 +9,23 @@ from openadmet.models.inference import inference as inference_module
 
 @pytest.fixture
 def input_df():
+    """Provide a simple DataFrame with SMILES for testing inference inputs."""
     return pd.DataFrame({"MY_SMILES": ["CCO", "CCN"]})
 
 
 def test_predict_with_mocked_single_model(mocker, input_df):
+    """
+    Test the inference pipeline with a single mocked model.
+    
+    This verifies that the `predict` function can:
+    1. Load a model and metadata (mocked).
+    2. Featurize input data (mocked).
+    3. Generate predictions.
+    4. Format the output DataFrame with correct column names (PRED and STD).
+    
+    Mocking is used here to avoid the complexity of loading a real ML model file and to isolate
+    the inference orchestration logic.
+    """
     mock_model = mocker.Mock()
     mock_model.estimator = "mock-estimator"
     mock_model.predict.return_value = np.asarray([[1.0], [2.0]])
@@ -46,6 +59,17 @@ def test_predict_with_mocked_single_model(mocker, input_df):
 
 
 def test_predict_with_mocked_ensemble_and_acquisition(mocker, input_df):
+    """
+    Test the inference pipeline with an ensemble model and acquisition functions.
+    
+    This verifies that when an ensemble is used and acquisition functions (like UCB) are requested,
+    the output DataFrame contains:
+    - Mean predictions
+    - Uncertainty estimates (standard deviation)
+    - Acquisition scores (e.g., UCB values)
+    
+    Mocking the ensemble allows us to return controlled mean/std values and verify the UCB calculation logic.
+    """
     mock_model = mocker.Mock()
     mock_model.estimator = "mock-ensemble"
     mock_model.n_models = 2
@@ -87,6 +111,7 @@ def test_predict_with_mocked_ensemble_and_acquisition(mocker, input_df):
 
 
 def test_predict_raises_when_input_column_missing(input_df):
+    """Ensure that the inference function validates the existence of the specified SMILES column."""
     with pytest.raises(ValueError, match="Column OTHER not found"):
         inference_module.predict(
             input_path=input_df,
@@ -97,11 +122,13 @@ def test_predict_raises_when_input_column_missing(input_df):
 
 
 def test_load_anvil_model_and_metadata_missing_recipe_components(tmp_path):
+    """Ensure correct error is raised when the model directory structure is invalid (missing recipe_components)."""
     with pytest.raises(FileNotFoundError, match="does not contain recipe components"):
         inference_module.load_anvil_model_and_metadata(tmp_path)
 
 
 def test_load_anvil_model_and_metadata_missing_procedure_yaml(tmp_path):
+    """Ensure correct error is raised when critical metadata files (procedure.yaml) are missing."""
     model_dir = tmp_path / "model"
     recipe_components = model_dir / "recipe_components"
     recipe_components.mkdir(parents=True)

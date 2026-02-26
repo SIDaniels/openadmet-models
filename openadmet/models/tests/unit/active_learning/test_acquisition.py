@@ -13,6 +13,14 @@ from openadmet.models.active_learning.acquisition import (
 
 
 def test_basic_acquisition_functions_passthrough():
+    """
+    Validate that basic acquisition functions return expected values based on mean and standard deviation.
+    
+    This verifies that:
+    - Max uncertainty reduction returns standard deviation (uncertainty).
+    - Exploitation returns the mean prediction.
+    - UCB correctly combines mean and uncertainty with the beta parameter.
+    """
     mean = np.array([[1.0], [2.0]])
     std = np.array([[0.1], [0.2]])
     assert_allclose(max_uncertainty_reduction(mean, std), std)
@@ -21,6 +29,12 @@ def test_basic_acquisition_functions_passthrough():
 
 
 def test_probability_improvement_matches_formula():
+    """
+    Verify Probability of Improvement (PI) calculation against the explicit mathematical formula.
+    
+    This ensures that the implementation correctly computes the cumulative distribution function (CDF)
+    of the improvement over the best observed value, accounting for the exploration parameter xi.
+    """
     mean = np.array([[1.0], [2.0]])
     std = np.array([[0.5], [1e-12]])
     best_y = 1.2
@@ -30,6 +44,12 @@ def test_probability_improvement_matches_formula():
 
 
 def test_expected_improvement_matches_formula():
+    """
+    Verify Expected Improvement (EI) calculation against the explicit mathematical formula.
+    
+    This ensures that EI correctly balances exploration and exploitation using both the CDF and PDF
+    of the normal distribution, which is critical for efficient active learning query strategies.
+    """
     mean = np.array([[1.0], [1.5]])
     std = np.array([[0.2], [1e-12]])
     best_y = 0.8
@@ -42,6 +62,7 @@ def test_expected_improvement_matches_formula():
 
 
 def test_acquisition_aliases_map_to_same_function():
+    """Ensure that shorthand aliases for acquisition functions map to the correct implementation functions."""
     assert (
         _ACQUISITION_FUNCTIONS["ur"]
         is _ACQUISITION_FUNCTIONS["max-uncertainty-reduction"]

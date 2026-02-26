@@ -10,10 +10,12 @@ from openadmet.models.tests.unit.datafiles import basic_anvil_yaml_cv
 
 @pytest.fixture
 def runner():
+    """Provide a Click CliRunner for testing CLI commands in isolation."""
     return CliRunner()
 
 
 def test_toplevel_runnable(runner):
+    """Ensure the top-level 'openadmet' command runs and displays help without error."""
     result = runner.invoke(cli, ["--help"])
     assert click_success(result)
 
@@ -22,11 +24,18 @@ def test_toplevel_runnable(runner):
     "args", [["anvil", "--help"], ["compare", "--help"], ["predict", "--help"]]
 )
 def test_subcommand_runnable(runner, args):
+    """Verify that all major subcommands (anvil, compare, predict) are registered and runnable."""
     result = runner.invoke(cli, args)
     assert click_success(result)
 
 
 def test_predict_cli_invokes_inference(tmp_path, runner, mocker):
+    """
+    Validate that the 'predict' subcommand correctly parses arguments and calls the underlying inference function.
+    
+    We mock `inference_func` to avoid loading real models (which is heavy and requires trained artifacts).
+    This ensures that the CLI layer correctly passes paths, column names, and flags to the logic layer.
+    """
     input_csv = tmp_path / "input.csv"
     input_csv.write_text("MY_SMILES\nCCO\n")
     model_dir = tmp_path / "model_dir"
@@ -60,6 +69,12 @@ def test_predict_cli_invokes_inference(tmp_path, runner, mocker):
 
 
 def test_anvil_cli_invokes_workflow(tmp_path, runner, mocker):
+    """
+    Validate that the 'anvil' subcommand correctly initializes and runs a workflow from a recipe.
+    
+    We mock the `AnvilSpecification` and workflow execution to verify that the CLI correctly handles
+    recipe paths and output directories without actually running a full ML training job.
+    """
     mock_workflow = mocker.Mock()
     mock_spec = mocker.Mock()
     mock_spec.to_workflow.return_value = mock_workflow
@@ -100,6 +115,11 @@ def test_anvil_cli_invokes_workflow(tmp_path, runner, mocker):
     ],
 )
 def test_validate_aq_fxns_success(aq_fxns, beta, best_y, xi, expected):
+    """
+    Verify that valid combinations of acquisition function arguments are correctly parsed into a configuration dict.
+    
+    This tests the CLI argument validation logic for active learning parameters.
+    """
     assert predict_cli_module._validate_aq_fxns(aq_fxns, beta, best_y, xi) == expected
 
 
@@ -112,5 +132,10 @@ def test_validate_aq_fxns_success(aq_fxns, beta, best_y, xi, expected):
     ],
 )
 def test_validate_aq_fxns_errors(aq_fxns, beta, best_y, xi, error_message):
+    """
+    Ensure that invalid acquisition function arguments trigger appropriate validation errors.
+    
+    This prevents users from running predictions with ambiguous or incomplete active learning settings.
+    """
     with pytest.raises(ValueError, match=error_message):
         predict_cli_module._validate_aq_fxns(aq_fxns, beta, best_y, xi)
