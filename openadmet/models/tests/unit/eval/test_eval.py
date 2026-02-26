@@ -1,6 +1,8 @@
-import pytest
-
+import matplotlib.figure
 import numpy as np
+import pytest
+import seaborn as sns
+
 from openadmet.models.eval.binary import PosthocBinaryMetrics
 from openadmet.models.eval.classification import (
     ClassificationMetrics,
@@ -23,9 +25,9 @@ def test_regression_metrics():
     rm = RegressionMetrics()
     metrics = rm.evaluate(y_true, y_pred)
 
-    assert metrics["task_0"]["mse"]["value"] == 0.375
-    assert metrics["task_0"]["mae"]["value"] == 0.5
-    assert metrics["task_0"]["r2"]["value"] == 0.9486081370449679
+    assert metrics["task_0"]["mse"]["value"] == pytest.approx(0.375, abs=0.001)
+    assert metrics["task_0"]["mae"]["value"] == pytest.approx(0.5, abs=0.001)
+    assert metrics["task_0"]["r2"]["value"] == pytest.approx(0.94860, abs=0.001)
 
 
 def test_regression_plots():
@@ -33,9 +35,13 @@ def test_regression_plots():
     y_pred = np.array([2.5, 0.0, 2, 8]).reshape(-1, 1)
 
     rm = RegressionPlots()
-    rm.evaluate(y_true, y_pred)
+    plot_data = rm.evaluate(y_true, y_pred)
 
-    assert True
+    assert isinstance(plot_data, dict)
+    assert "task_0_regplot" in plot_data
+    assert "task_0_ciplot" in plot_data
+    assert isinstance(plot_data["task_0_regplot"], sns.axisgrid.JointGrid)
+    assert isinstance(plot_data["task_0_ciplot"], matplotlib.figure.Figure)
 
 
 def test_classification_metrics():
@@ -48,11 +54,11 @@ def test_classification_metrics():
     cm = ClassificationMetrics()
     metrics = cm.evaluate(y_true, y_pred)
 
-    assert metrics["accuracy"]["value"] == 0.75
+    assert metrics["accuracy"]["value"] == pytest.approx(0.75)
     assert metrics["precision"]["value"] == pytest.approx(0.667, abs=0.001)
-    assert metrics["recall"]["value"] == 1.0
-    assert metrics["f1"]["value"] == 0.8
-    assert metrics["roc_auc"]["value"] == 0.75
+    assert metrics["recall"]["value"] == pytest.approx(1.0)
+    assert metrics["f1"]["value"] == pytest.approx(0.8)
+    assert metrics["roc_auc"]["value"] == pytest.approx(0.75)
     assert metrics["pr_auc"]["value"] == pytest.approx(0.833, abs=0.001)
 
 
@@ -63,7 +69,11 @@ def test_classification_plots():
     cp = ClassificationPlots()
     cp.evaluate(y_true, y_pred)
 
-    assert True
+    assert isinstance(cp.plot_data, dict)
+    assert "roc_curve" in cp.plot_data
+    assert "pr_curve" in cp.plot_data
+    assert isinstance(cp.plot_data["roc_curve"], matplotlib.figure.Figure)
+    assert isinstance(cp.plot_data["pr_curve"], matplotlib.figure.Figure)
 
 
 def test_posthoc_eval_metrics():

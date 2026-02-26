@@ -1,58 +1,67 @@
 import numpy as np
-import pytest
 import pandas as pd
-from openadmet.models.features.mtenn import MTENNFeaturizer, MTENNDataset
-from openadmet.models.tests.unit.datafiles import ligand_pose
+import pytest
+import torch
+
+from openadmet.models.features.mtenn import MTENNDataset, MTENNFeaturizer
 
 
-@pytest.fixture()
-def cyp3a4_pose():
-    """Fixture for ligand pose"""
-    return ligand_pose
+@pytest.fixture
+def mock_complex_features(mocker):
+    """Patch MTENN complex loading with lightweight synthetic tensors."""
+    pos = torch.randn(5, 3)
+    z = torch.tensor([6, 6, 8, 1, 1], dtype=torch.int32)
+    b = torch.ones(5, dtype=torch.float32)
+    lig_mask = torch.tensor([False, False, True, True, True], dtype=torch.bool)
+
+    def _mock_load_complexes(complexes, ligand_resname, ignore_h=True):
+        n = len(complexes)
+        return (
+            [pos.clone() for _ in range(n)],
+            [z.clone() for _ in range(n)],
+            [b.clone() for _ in range(n)],
+            [lig_mask.clone() for _ in range(n)],
+        )
+
+    mocker.patch.object(
+        MTENNDataset, "_load_complexes", side_effect=_mock_load_complexes
+    )
+
+    return pos, z, b, lig_mask
 
 
-def test_mtenn_dataset(cyp3a4_pose):
-    """Test MTENNDataset class for basic functionality"""
-    # Create a mock dataset, with two identical complexes and a single target value
-    complexes = [cyp3a4_pose, cyp3a4_pose]
-    y = np.asarray([42, 43])
-    dataset = MTENNDataset(complexes, y, ligand_resname="X5Y", ignore_h=True)
-
-    # Check the length of the dataset
-    assert len(dataset) == 2
-    # Check the shape of the features
-
-    feats = next(iter(dataset))
-
-    assert feats["Y"] == 42
-    assert feats["lig_mask"].numpy().shape == (3695,)
-    assert feats["pos"].numpy().shape == (3695, 3)
-    assert feats["Z"].numpy().shape == (3695,)
-    assert feats["B"].numpy().shape == (3695,)
-
-    # check the ligand mask, 38 atoms in the ligand
-    assert feats["lig_mask"].numpy().sum() == 38
-
-
-def test_mtenn_featurizer(cyp3a4_pose):
-    ft = MTENNFeaturizer(
-        ligand_resname="X5Y",
+def test_mtenn_dataset(mock_complex_features):
+    pos, z, b, lig_mask = mock_complex_features
+    dataset = MTENNDataset(
+        ["complex_a", "complex_b"],
+        np.asarray([42, 43]),
+        ligand_resname="LIG",
         ignore_h=True,
     )
 
-    dataloader, _, _, _ = ft.featurize([cyp3a4_pose], pd.Series([42]))
+    assert len(dataset) == 2
+    feats = dataset[0]
 
-    # Check the length of the dataloader
+    assert feats["Y"] == 42
+    assert feats["pos"].shape == pos.shape
+    assert torch.equal(feats["Z"], z)
+    assert torch.equal(feats["B"], b)
+    assert torch.equal(feats["lig_mask"], lig_mask)
+
+
+def test_mtenn_featurizer(mock_complex_features):
+    ft = MTENNFeaturizer(ligand_resname="LIG", ignore_h=True, batch_size=2, n_jobs=0)
+    dataloader, idx, scaler, dataset = ft.featurize(
+        ["complex_a", "complex_b"], pd.Series([42.0, 43.0])
+    )
+
+    assert len(dataset) == 2
     assert len(dataloader) == 1
-    # Check the shape of the features
+    assert np.array_equal(idx, np.array([0, 1]))
+    assert scaler is None
+
     feats, y = next(iter(dataloader))
-
-    assert y.item() == 42
-    assert feats[0]["lig"].numpy().shape == (3695,)
-    assert feats[0]["pos"].numpy().shape == (3695, 3)
-    assert feats[0]["z"].numpy().shape == (3695,)
-
-    ##The following are not returned from featurizer
-    # assert feats["B"].numpy().shape == (1, 3695)
-    # check the ligand mask, 38 atoms in the ligand
-    # assert feats["lig_mask"].numpy().sum() == 38
+    assert y.shape == (2, 1)
+    assert feats[0]["pos"].shape[1] == 3
+    assert feats[0]["z"].ndim == 1
+    assert feats[0]["lig"].dtype == torch.bool

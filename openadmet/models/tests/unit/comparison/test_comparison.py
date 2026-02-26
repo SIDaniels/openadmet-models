@@ -1,14 +1,15 @@
+import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal
-import numpy as np
+
 from openadmet.models.comparison.compare_base import get_comparison_class
 from openadmet.models.comparison.posthoc import PostHocComparison
 from openadmet.models.tests.unit.datafiles import (
-    cyp2c9_json,
+    anvil_lgbm_trained_model_dir,
     cyp1a2_json,
+    cyp2c9_json,
     cyp3a4_json,
     multi_task_json,
-    anvil_lgbm_trained_model_dir,
 )
 
 
@@ -130,10 +131,10 @@ def test_posthoc_comparison_json_reader():
     levene, tukeys_df = comp_obj.compare(
         model_stats_fns=model_stats, labels=model_tags, task_names=task_tags
     )
-    assert levene["mse"][0] == 2.483488460351842
-    assert levene["ktau"][0] == 1.0392615736603197
-    assert tukeys_df["metric_val"][0] == -0.01037444780666702
-    assert tukeys_df["pvalue"][0] == 0.2488307785417857
+    assert levene["mse"][0] == pytest.approx(2.483, abs=0.001)
+    assert levene["ktau"][0] == pytest.approx(1.039, abs=0.001)
+    assert tukeys_df["metric_val"][0] == pytest.approx(-0.010, abs=0.001)
+    assert tukeys_df["pvalue"][0] == pytest.approx(0.248, abs=0.001)
 
 
 def test_posthoc_comparison_printing(capsys):

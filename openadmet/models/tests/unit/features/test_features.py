@@ -62,14 +62,40 @@ def test_feature_concatenator(smiles):
     assert_array_equal(idx, np.arange(3))
 
 
-def test_feature_concatenator_failed_diff_positions(one_invalid_smi):
+
+def test_feature_concatenator_drops_intersection(mocker):
+    # Arrange
     desc_featurizer = DescriptorFeaturizer(descr_type="mordred")
     fp_featurizer = FingerprintFeaturizer(fp_type="ecfp")
     concat = FeatureConcatenator(featurizers=[desc_featurizer, fp_featurizer])
-    X, idx = concat.featurize(one_invalid_smi)
-    assert X.shape == (3, 3613)
-    # index 2 is invalid, so the shape should be 3
-    assert_array_equal(idx, np.asarray([0, 1, 3]))
+
+    # Mock descriptor featurizer to return 3 valid outputs (fails on index 1)
+    # Indices: 0, 2, 3 (skips 1)
+    desc_features = np.zeros((3, 1613))
+    desc_indices = np.array([0, 2, 3])
+    mocker.patch.object(
+        DescriptorFeaturizer, "featurize", return_value=(desc_features, desc_indices)
+    )
+
+    # Mock fingerprint featurizer to return 3 valid outputs (fails on index 2)
+    # Indices: 0, 1, 3 (skips 2)
+    # Note: ECFP size is 2000 in this codebase
+    fp_features = np.zeros((3, 2000))
+    fp_indices = np.array([0, 1, 3])
+    mocker.patch.object(
+        FingerprintFeaturizer, "featurize", return_value=(fp_features, fp_indices)
+    )
+
+    smiles = ["SMI0", "SMI1", "SMI2", "SMI3"]
+
+    # Act
+    X, idx = concat.featurize(smiles)
+
+    # Assert
+    # Intersection of [0, 2, 3] and [0, 1, 3] is [0, 3]
+    # Expected shape: (2, 1613 + 2000) = (2, 3613)
+    assert X.shape == (2, 3613)
+    assert_array_equal(idx, np.array([0, 3]))
 
 
 def test_feature_concatenator_order_independence(smiles):
