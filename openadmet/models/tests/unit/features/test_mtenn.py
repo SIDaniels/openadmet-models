@@ -10,7 +10,7 @@ from openadmet.models.features.mtenn import MTENNDataset, MTENNFeaturizer
 def mock_complex_features(mocker):
     """
     Patch MTENN complex loading with lightweight synthetic tensors.
-    
+
     We mock `_load_complexes` to avoid needing actual PDB/SDF files and heavy RDKit/OpenBabel parsing.
     This isolates the MTENNDataset and MTENNFeaturizer logic, allowing us to verify data structuring
     and tensor shapes without file I/O overhead.
@@ -39,7 +39,7 @@ def mock_complex_features(mocker):
 def test_mtenn_dataset(mock_complex_features):
     """
     Validate that MTENNDataset correctly constructs data items from complex features.
-    
+
     This ensures that the dataset class properly organizes positions, atomic numbers,
     and masks into the dictionary format expected by MTENN models.
     """
@@ -64,7 +64,7 @@ def test_mtenn_dataset(mock_complex_features):
 def test_mtenn_featurizer(mock_complex_features):
     """
     Validate the MTENNFeaturizer high-level interface.
-    
+
     This checks that the featurizer correctly instantiates the dataset and data loader,
     returning formatted batches ready for training.
     """

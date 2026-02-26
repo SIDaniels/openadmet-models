@@ -36,7 +36,7 @@ def test_simple_split(
 ):
     """
     Validate that ShuffleSplitter correctly partitions data according to specified ratios.
-    
+
     This test verifies both successful splits and error handling for invalid configurations.
     Correct splitting ensures that training, validation, and test sets are of the expected size
     and are mutually exclusive, which is critical for valid model evaluation.
@@ -98,7 +98,7 @@ def test_simple_split(
 def synthetic_cluster_data():
     """
     Provide a synthetic dataset with structural diversity for testing cluster splitting.
-    
+
     This fixture returns a set of SMILES strings representing different chemical scaffolds
     (benzenes, pyridines, cyclohexanes, furans, thiophenes) and corresponding target values.
     Using diverse scaffolds ensures that clustering algorithms (like Butina or Bemis-Murcko)
@@ -222,7 +222,7 @@ def synthetic_cluster_data():
 def test_cluster_split_synthetic_data(method, synthetic_cluster_data):
     """
     Validate ClusterSplitter functionality with different clustering methods.
-    
+
     This test ensures that molecular data is split such that training, validation, and test sets
     contain mutually exclusive molecules (no data leakage). It verifies split sizes are approximately
     correct and that structural separation is maintained.

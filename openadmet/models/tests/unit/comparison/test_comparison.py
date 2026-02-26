@@ -16,7 +16,7 @@ from openadmet.models.tests.unit.datafiles import (
 def test_get_comparison_class():
     """
     Test dynamic retrieval of comparison classes from the registry.
-    
+
     Verifies that valid class names return the class and invalid names raise ValueError.
     """
     get_comparison_class("PostHoc")
@@ -34,7 +34,7 @@ def test_posthoc_fails_on_incorrect_inputs():
     - Mismatched lengths of model_stats_fns, labels, and task_names
     - Repeated labels
     - Incorrect labels and task_names for model_stats_fns
-    
+
     This validation is critical to ensure that comparison tables and plots match models to their correct metadata.
     """
     comp_obj = PostHocComparison()
@@ -79,8 +79,8 @@ def test_posthoc_repeat_label_error():
 def test_posthoc_comparison():
     """
     Test that posthoc comparison works correctly when given valid inputs.
-    
-    This verifies the calculation of statistical tests (Levene's test for equality of variances, 
+
+    This verifies the calculation of statistical tests (Levene's test for equality of variances,
     Tukey's HSD for pairwise mean differences) based on loaded model metrics.
     """
     model_stats = [cyp2c9_json, cyp3a4_json, cyp1a2_json]
@@ -112,7 +112,7 @@ def test_posthoc_comparison_anvil_reader_and_feature_label(
 ):
     """
     Test that posthoc comparison can automatically extract labels from anvil-trained model directories.
-    
+
     This ensures that metadata stored in `metadata.yaml` within model directories can be correctly
     parsed to generate readable labels for comparison plots.
     """
@@ -141,7 +141,7 @@ def test_posthoc_comparison_json_reader_fails(label_types):
 def test_posthoc_comparison_json_reader():
     """
     Test that posthoc comparison handles both multi-task and single-task JSON result files.
-    
+
     This verifies that the system can normalize results from different task types into a common
     format for statistical comparison.
     """
@@ -162,7 +162,7 @@ def test_posthoc_comparison_json_reader():
 def test_posthoc_comparison_printing(capsys):
     """
     Test that posthoc comparison prints results to console in a readable format.
-    
+
     We capture stdout to verify that Levene's test and Tukey's HSD results are actually displayed to the user.
     """
     model_stats = [cyp2c9_json, cyp3a4_json, cyp1a2_json]

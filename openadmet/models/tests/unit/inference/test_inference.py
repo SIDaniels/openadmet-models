@@ -16,13 +16,13 @@ def input_df():
 def test_predict_with_mocked_single_model(mocker, input_df):
     """
     Test the inference pipeline with a single mocked model.
-    
+
     This verifies that the `predict` function can:
     1. Load a model and metadata (mocked).
     2. Featurize input data (mocked).
     3. Generate predictions.
     4. Format the output DataFrame with correct column names (PRED and STD).
-    
+
     Mocking is used here to avoid the complexity of loading a real ML model file and to isolate
     the inference orchestration logic.
     """
@@ -61,13 +61,13 @@ def test_predict_with_mocked_single_model(mocker, input_df):
 def test_predict_with_mocked_ensemble_and_acquisition(mocker, input_df):
     """
     Test the inference pipeline with an ensemble model and acquisition functions.
-    
+
     This verifies that when an ensemble is used and acquisition functions (like UCB) are requested,
     the output DataFrame contains:
     - Mean predictions
     - Uncertainty estimates (standard deviation)
     - Acquisition scores (e.g., UCB values)
-    
+
     Mocking the ensemble allows us to return controlled mean/std values and verify the UCB calculation logic.
     """
     mock_model = mocker.Mock()
