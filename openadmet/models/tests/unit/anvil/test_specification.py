@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import yaml
 from pathlib import Path
-from unittest.mock import MagicMock
+from openadmet.models.architecture.model_base import LightningModelBase
 from openadmet.models.anvil.specification import (
     DataSpec,
     Metadata,
@@ -417,47 +417,14 @@ def test_anvilspecification_to_workflow_returns_correct_driver_type(mocker):
     assert isinstance(workflow_sklearn, AnvilWorkflow)
 
     # Case 2: LIGHTNING driver — mock section.to_class() at class level since no DL model is registered
-    from pydantic import ConfigDict as _ConfigDict
-    from openadmet.models.architecture.model_base import LightningModelBase
-    from openadmet.models.trainer.trainer_base import TrainerBase as _TrainerBase
-    from openadmet.models.split.split_base import SplitterBase as _SplitterBase
-    from openadmet.models.features.feature_base import FeaturizerBase as _FeaturizerBase
+    from openadmet.models.trainer.lightning import LightningTrainer as _LightningTrainer
     from openadmet.models.drivers import DriverType as _DriverType
 
-    class _DLModelStub(LightningModelBase):
-        model_config = _ConfigDict(arbitrary_types_allowed=True, extra="allow")
-        n_tasks: int = 1
-
-        @property
-        def _n_tasks(self):
-            return self.n_tasks
-
-        def build(self, **kwargs): pass
-        def train(self, *a, **kw): pass
-        def predict(self, X, **kw): return None
-        def serialize(self, *a, **kw): pass
-        def deserialize(self, *a, **kw): pass
-        def save(self, path): pass
-        def load(self, path): pass
-
-    class _DLTrainerStub(_TrainerBase):
-        model_config = _ConfigDict(arbitrary_types_allowed=True, extra="allow")
-
-        @property
-        def _driver_type(self):
-            return _DriverType.LIGHTNING
-
-        def build(self, **kwargs): pass
-        def train(self, X=None, y=None): return None
-
-    class _SplitterStub(_SplitterBase):
-        def split(self, X, y): return (X, None, None, y, None, None, None)
-
-    class _FeaturizerStub(_FeaturizerBase):
-        def featurize(self, smiles, *args, **kwargs): return (smiles, None)
-
-    dl_model = _DLModelStub()
-    dl_trainer = _DLTrainerStub()
+    dl_model = mocker.create_autospec(LightningModelBase, instance=True)
+    dl_model._n_tasks = 1
+    dl_model._driver_type = _DriverType.LIGHTNING
+    dl_trainer = mocker.create_autospec(_LightningTrainer, instance=True)
+    dl_trainer._driver_type = _DriverType.LIGHTNING
 
     spec_dl = make_spec("LightningTrainer")
 
@@ -605,9 +572,9 @@ def test_dataspec_read_train_test_yaml_raises():
 
 def test_modelspec_freeze_weights_succeeds_when_supported(mocker):
     """Test ModelSpec instantiates without error when freeze_weights is supported."""
-    mock_model = MagicMock()
-    mock_model.build = MagicMock(return_value=None)
-    mock_model.freeze_weights = MagicMock(return_value=None)
+    mock_model = mocker.MagicMock(spec=LightningModelBase)
+    mock_model.build = mocker.MagicMock(return_value=None)
+    mock_model.freeze_weights = mocker.MagicMock(return_value=None)
 
     mocker.patch.object(ModelSpec, "to_class", autospec=True, return_value=mock_model)
 
@@ -619,9 +586,9 @@ def test_modelspec_freeze_weights_succeeds_when_supported(mocker):
 
 def test_modelspec_freeze_weights_raises_when_not_implemented(mocker):
     """Test ModelSpec raises ValueError when freeze_weights is not implemented."""
-    mock_model = MagicMock()
-    mock_model.build = MagicMock(return_value=None)
-    mock_model.freeze_weights = MagicMock(side_effect=NotImplementedError("not implemented"))
+    mock_model = mocker.MagicMock(spec=LightningModelBase)
+    mock_model.build = mocker.MagicMock(return_value=None)
+    mock_model.freeze_weights = mocker.MagicMock(side_effect=NotImplementedError("not implemented"))
 
     mocker.patch.object(ModelSpec, "to_class", autospec=True, return_value=mock_model)
 
