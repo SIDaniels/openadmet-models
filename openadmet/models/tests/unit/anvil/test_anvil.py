@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
 
 from openadmet.models.anvil.specification import (
     AnvilSpecification,
@@ -57,6 +58,10 @@ def test_anvil_spec_create_to_workflow():
     anvil_spec = AnvilSpecification.from_recipe(basic_anvil_yaml)
     anvil_workflow = anvil_spec.to_workflow()
     assert anvil_workflow
+    assert anvil_workflow.model_kwargs["param_path"] is None
+    assert anvil_workflow.model_kwargs["serial_path"] is None
+    assert anvil_workflow.ensemble_kwargs == {}
+    assert anvil_workflow.feat_kwargs["type"] == anvil_spec.procedure.feat.type
 
 
 @pytest.mark.parametrize("anvil_full_recipie", all_anvil_full_recipes())
@@ -73,7 +78,8 @@ def test_anvil_workflow_run(tmp_path, anvil_full_recipie, mocker):
 
     We mock heavy components (train, read, featurize) to make this a fast unit test rather than a slow integration test.
     """
-    anvil_workflow = AnvilSpecification.from_recipe(anvil_full_recipie).to_workflow()
+    anvil_spec = AnvilSpecification.from_recipe(anvil_full_recipie)
+    anvil_workflow = anvil_spec.to_workflow()
     X = pd.DataFrame({"smiles": ["CCO", "CCN"]})
     y = pd.DataFrame({"target": [1.0, 2.0]})
     train_spy = mocker.patch.object(type(anvil_workflow), "_train", autospec=True)
@@ -91,9 +97,89 @@ def test_anvil_workflow_run(tmp_path, anvil_full_recipie, mocker):
     )
     mocker.patch.object(type(anvil_workflow.model), "serialize")
     mocker.patch("openadmet.models.anvil.workflow.zarr.save")
-    anvil_workflow.run(output_dir=tmp_path / "tst")
+    anvil_spec.run(output_dir=tmp_path / "tst")
     train_spy.assert_called_once()
     assert feat_spy.call_count == 2
+    assert (tmp_path / "tst" / "anvil_recipe.yaml").exists()
+    assert (tmp_path / "tst" / "recipe_components" / "metadata.yaml").exists()
+
+
+def test_anvil_spec_run_tag_override_updates_provenance(tmp_path, mocker):
+    """Test that a tag override is reflected in the saved provenance recipe."""
+    anvil_spec = AnvilSpecification.from_recipe(basic_anvil_yaml)
+    requested_output_dir = tmp_path / "requested_output"
+    resolved_output_dir = tmp_path / "resolved_output"
+    resolved_output_dir.mkdir(parents=True, exist_ok=True)
+
+    mock_workflow = mocker.Mock()
+    mock_workflow.resolved_output_dir = resolved_output_dir
+    mocker.patch.object(AnvilSpecification, "to_workflow", return_value=mock_workflow)
+
+    anvil_spec.run(output_dir=requested_output_dir, tag="override-tag")
+    mock_workflow.run.assert_called_once_with(
+        output_dir=requested_output_dir,
+        debug=False,
+        tag="override-tag",
+    )
+
+    with open(resolved_output_dir / "anvil_recipe.yaml") as stream:
+        recipe = yaml.safe_load(stream)
+    with open(resolved_output_dir / "recipe_components" / "metadata.yaml") as stream:
+        metadata = yaml.safe_load(stream)
+
+    assert recipe["metadata"]["tag"] == "override-tag"
+    assert metadata["tag"] == "override-tag"
+    assert anvil_spec.metadata.tag != "override-tag"
+
+
+def test_anvil_spec_run_writes_provenance_to_resolved_output_dir(tmp_path, mocker):
+    """Test that provenance is written to the workflow-resolved output directory."""
+    anvil_spec = AnvilSpecification.from_recipe(basic_anvil_yaml)
+    requested_output_dir = tmp_path / "requested_output"
+    resolved_output_dir = tmp_path / "resolved_output"
+    resolved_output_dir.mkdir(parents=True, exist_ok=True)
+
+    mock_workflow = mocker.Mock()
+    mock_workflow.resolved_output_dir = resolved_output_dir
+    mocker.patch.object(AnvilSpecification, "to_workflow", return_value=mock_workflow)
+
+    anvil_spec.run(output_dir=requested_output_dir)
+    mock_workflow.run.assert_called_once_with(
+        output_dir=requested_output_dir,
+        debug=False,
+        tag=None,
+    )
+
+    assert (resolved_output_dir / "anvil_recipe.yaml").exists()
+    assert (resolved_output_dir / "recipe_components" / "metadata.yaml").exists()
+    assert not (requested_output_dir / "anvil_recipe.yaml").exists()
+
+
+def test_anvil_spec_run_writes_provenance_to_requested_dir_when_no_resolved_output(
+    tmp_path, mocker
+):
+    """Test that provenance falls back to the requested output directory when unresolved."""
+    anvil_spec = AnvilSpecification.from_recipe(basic_anvil_yaml)
+    requested_output_dir = tmp_path / "requested_output"
+    assert not requested_output_dir.exists()
+
+    mock_workflow = mocker.Mock()
+    mock_workflow.resolved_output_dir = None
+    mocker.patch.object(AnvilSpecification, "to_workflow", return_value=mock_workflow)
+
+    anvil_spec.run(
+        output_dir=requested_output_dir,
+        debug=True,
+        tag="fallback-tag",
+    )
+    mock_workflow.run.assert_called_once_with(
+        output_dir=requested_output_dir,
+        debug=True,
+        tag="fallback-tag",
+    )
+
+    assert (requested_output_dir / "anvil_recipe.yaml").exists()
+    assert (requested_output_dir / "recipe_components" / "metadata.yaml").exists()
 
 
 def test_anvil_multiyaml(tmp_path):
