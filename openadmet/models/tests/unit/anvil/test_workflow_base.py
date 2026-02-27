@@ -1,6 +1,4 @@
 import pytest
-from pathlib import Path
-from typing import Any
 from pydantic import ConfigDict
 from openadmet.models.anvil.workflow_base import AnvilWorkflowBase
 from openadmet.models.anvil.specification import DataSpec, Metadata
@@ -10,69 +8,7 @@ from openadmet.models.eval.eval_base import EvalBase
 from openadmet.models.split.split_base import SplitterBase
 from openadmet.models.features.feature_base import FeaturizerBase
 from openadmet.models.active_learning.ensemble_base import EnsembleBase
-
-
-# --- Stub Classes for Testing ---
-
-class ModelStub(PickleableModelBase):
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
-    n_tasks: int = 1
-    driver_type: str = "sklearn"
-
-    @property
-    def _n_tasks(self):
-        return self.n_tasks
-
-    @property
-    def _driver_type(self):
-        return self.driver_type
-
-    def build(self): pass
-    def train(self, X, y): pass
-    def predict(self, X, **kwargs): return None
-
-
-class TrainerStub(TrainerBase):
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
-    driver_type: str = "sklearn"
-
-    @property
-    def _driver_type(self):
-        return self.driver_type
-
-    def build(self, **kwargs): pass
-    def train(self, X=None, y=None): return None
-
-
-class EvalStub(EvalBase):
-    is_cross_val: bool = False
-    driver_type: str = "sklearn"
-
-    @property
-    def _driver_type(self):
-        return self.driver_type
-
-    def evaluate(self, **kwargs): pass
-    def report(self, **kwargs): pass
-
-
-class SplitterStub(SplitterBase):
-    def split(self, X, y):
-        return (X, None, None, y, None, None, None)
-
-
-class FeaturizerStub(FeaturizerBase):
-    def featurize(self, smiles, *args, **kwargs):
-        return (smiles, None)
-
-
-class EnsembleStub(EnsembleBase):
-    def train(self, X, y): pass
-    def predict(self, X, **kwargs): return None
-    def serialize(self, *args): pass
-    def save(self, path): pass
-    def load(self, path): pass
-    def deserialize(self, *args): pass
+from openadmet.models.drivers import DriverType
 
 
 # Concrete workflow implementation for testing
@@ -81,6 +17,7 @@ class ConcreteWorkflow(AnvilWorkflowBase):
 
     def run(self, output_dir="anvil_training", debug=False):
         return "ran"
+
 
 # Minimal metadata for testing
 def get_minimal_metadata():
@@ -97,14 +34,35 @@ def get_minimal_metadata():
         tags=[],
     )
 
+
 # Helper to build a workflow with specific components
 def build_workflow(
+    mocker,
+    *,
     model=None,
     trainer=None,
     evals=None,
     ensemble=None,
     target_cols=["target"],
 ):
+    if model is None:
+        model = mocker.create_autospec(PickleableModelBase, instance=True)
+        model._n_tasks = 1
+        model.n_tasks = 1
+        model._driver_type = DriverType.SKLEARN
+    if trainer is None:
+        trainer = mocker.create_autospec(TrainerBase, instance=True)
+        trainer._driver_type = DriverType.SKLEARN
+    if evals is None:
+        eval_mock = mocker.create_autospec(EvalBase, instance=True)
+        eval_mock.is_cross_val = False
+        eval_mock._driver_type = DriverType.SKLEARN
+        evals = [eval_mock]
+    split = mocker.create_autospec(SplitterBase, instance=True)
+    split.train_size = 0.8
+    split.val_size = 0.0
+    split.test_size = 0.2
+    feat = mocker.create_autospec(FeaturizerBase, instance=True)
     return ConcreteWorkflow(
         metadata=get_minimal_metadata(),
         data_spec=DataSpec(
@@ -113,80 +71,97 @@ def build_workflow(
             target_cols=target_cols,
             resource="data.csv",
         ),
-        split=SplitterStub(),
-        feat=FeaturizerStub(),
-        model=model or ModelStub(),
-        trainer=trainer or TrainerStub(),
-        evals=evals or [EvalStub()],
+        split=split,
+        feat=feat,
+        model=model,
+        trainer=trainer,
+        evals=evals,
         ensemble=ensemble,
     )
 
 
 # --- Tests ---
 
-def test_multitask_check_passes_when_counts_match():
+def test_multitask_check_passes_when_counts_match(mocker):
     """Test that validation passes when model n_tasks matches data target_cols."""
-    # 2 tasks, 2 target cols
-    model = ModelStub(n_tasks=2)
-    workflow = build_workflow(model=model, target_cols=["t1", "t2"])
+    model = mocker.create_autospec(PickleableModelBase, instance=True)
+    model._n_tasks = 2
+    model.n_tasks = 2
+    model._driver_type = DriverType.SKLEARN
+    workflow = build_workflow(mocker, model=model, target_cols=["t1", "t2"])
     assert workflow
 
 
-def test_multitask_check_raises_when_counts_mismatch():
+def test_multitask_check_raises_when_counts_mismatch(mocker):
     """Test that validation raises ValueError when n_tasks does not match target_cols."""
-    # 2 tasks, 3 target cols
-    model = ModelStub(n_tasks=2)
+    model = mocker.create_autospec(PickleableModelBase, instance=True)
+    model._n_tasks = 2
+    model.n_tasks = 2
+    model._driver_type = DriverType.SKLEARN
     with pytest.raises(ValueError, match="tasks but the data specification has"):
-        build_workflow(model=model, target_cols=["t1", "t2", "t3"])
+        build_workflow(mocker, model=model, target_cols=["t1", "t2", "t3"])
 
 
-def test_no_ensemble_cross_val_raises_when_both_present():
+def test_no_ensemble_cross_val_raises_when_both_present(mocker):
     """Test that using ensemble with cross-validation raises ValueError."""
-    ensemble = EnsembleStub()
-    evals = [EvalStub(is_cross_val=True)]
-    
+    ensemble = mocker.create_autospec(EnsembleBase, instance=True)
+    eval_mock = mocker.create_autospec(EvalBase, instance=True)
+    eval_mock.is_cross_val = True
+    eval_mock._driver_type = DriverType.SKLEARN
     with pytest.raises(ValueError, match="Ensemble models cannot be used with cross-validation"):
-        build_workflow(ensemble=ensemble, evals=evals)
+        build_workflow(mocker, ensemble=ensemble, evals=[eval_mock])
 
 
-def test_no_ensemble_cross_val_allows_cv_without_ensemble():
+def test_no_ensemble_cross_val_allows_cv_without_ensemble(mocker):
     """Test that cross-validation is allowed if no ensemble is present."""
-    evals = [EvalStub(is_cross_val=True)]
-    workflow = build_workflow(evals=evals, ensemble=None)
+    eval_mock = mocker.create_autospec(EvalBase, instance=True)
+    eval_mock.is_cross_val = True
+    eval_mock._driver_type = DriverType.SKLEARN
+    workflow = build_workflow(mocker, evals=[eval_mock], ensemble=None)
     assert workflow
 
 
-def test_model_trainer_driver_mismatch_raises():
+def test_model_trainer_driver_mismatch_raises(mocker):
     """Test that mismatched model and trainer drivers raise ValueError."""
-    model = ModelStub(driver_type="sklearn")
-    trainer = TrainerStub(driver_type="lightning")
-
+    model = mocker.create_autospec(PickleableModelBase, instance=True)
+    model._n_tasks = 1
+    model.n_tasks = 1
+    model._driver_type = DriverType.SKLEARN
+    trainer = mocker.create_autospec(TrainerBase, instance=True)
+    trainer._driver_type = DriverType.LIGHTNING
     with pytest.raises(ValueError, match="Model driver type .* does not match trainer"):
-        build_workflow(model=model, trainer=trainer)
+        build_workflow(mocker, model=model, trainer=trainer)
 
 
-def test_model_trainer_driver_match_succeeds():
+def test_model_trainer_driver_match_succeeds(mocker):
     """Test that matching model and trainer drivers succeed."""
-    model = ModelStub(driver_type="sklearn")
-    trainer = TrainerStub(driver_type="sklearn")
-    workflow = build_workflow(model=model, trainer=trainer)
+    model = mocker.create_autospec(PickleableModelBase, instance=True)
+    model._n_tasks = 1
+    model.n_tasks = 1
+    model._driver_type = DriverType.SKLEARN
+    trainer = mocker.create_autospec(TrainerBase, instance=True)
+    trainer._driver_type = DriverType.SKLEARN
+    workflow = build_workflow(mocker, model=model, trainer=trainer)
     assert workflow
 
 
-def test_cv_trainer_compatibility_raises_on_driver_mismatch():
+def test_cv_trainer_compatibility_raises_on_driver_mismatch(mocker):
     """Test that CV evaluator with mismatched trainer driver raises ValueError."""
-    trainer = TrainerStub(driver_type="sklearn")
-    evals = [EvalStub(is_cross_val=True, driver_type="lightning")]
-
+    trainer = mocker.create_autospec(TrainerBase, instance=True)
+    trainer._driver_type = DriverType.SKLEARN
+    eval_mock = mocker.create_autospec(EvalBase, instance=True)
+    eval_mock.is_cross_val = True
+    eval_mock._driver_type = DriverType.LIGHTNING
     with pytest.raises(ValueError, match="Trainer driver type .* does not match evaluation"):
-        build_workflow(trainer=trainer, evals=evals)
+        build_workflow(mocker, trainer=trainer, evals=[eval_mock])
 
 
-def test_cv_trainer_compatibility_ignores_non_cv_evals():
+def test_cv_trainer_compatibility_ignores_non_cv_evals(mocker):
     """Test that non-CV evaluators do not trigger driver mismatch checks."""
-    trainer = TrainerStub(driver_type="sklearn")
-    # Even if eval driver is different, if is_cross_val is False, it should pass
-    evals = [EvalStub(is_cross_val=False, driver_type="lightning")]
-
-    workflow = build_workflow(trainer=trainer, evals=evals)
+    trainer = mocker.create_autospec(TrainerBase, instance=True)
+    trainer._driver_type = DriverType.SKLEARN
+    eval_mock = mocker.create_autospec(EvalBase, instance=True)
+    eval_mock.is_cross_val = False
+    eval_mock._driver_type = DriverType.LIGHTNING
+    workflow = build_workflow(mocker, trainer=trainer, evals=[eval_mock])
     assert workflow
