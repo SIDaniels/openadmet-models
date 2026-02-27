@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from click.testing import CliRunner
 
@@ -75,9 +77,7 @@ def test_anvil_cli_invokes_workflow(tmp_path, runner, mocker):
     We mock the `AnvilSpecification` and workflow execution to verify that the CLI correctly handles
     recipe paths and output directories without actually running a full ML training job.
     """
-    mock_workflow = mocker.Mock()
     mock_spec = mocker.Mock()
-    mock_spec.to_workflow.return_value = mock_workflow
     mock_from_recipe = mocker.patch.object(
         anvil_cli_module.AnvilSpecification, "from_recipe", return_value=mock_spec
     )
@@ -95,9 +95,9 @@ def test_anvil_cli_invokes_workflow(tmp_path, runner, mocker):
 
     assert click_success(result)
     mock_from_recipe.assert_called_once_with(basic_anvil_yaml_cv)
-    mock_workflow.run.assert_called_once()
-    called = mock_workflow.run.call_args.kwargs
-    assert called["output_dir"] == tmp_path / "anvil_output"
+    mock_spec.run.assert_called_once()
+    called = mock_spec.run.call_args.kwargs
+    assert Path(called["output_dir"]) == tmp_path / "anvil_output"
     assert called["debug"] is False
 
 
