@@ -76,11 +76,15 @@ def _build_code_first_anvil_spec(workflow_type: str) -> AnvilSpecification:
             params={} if workflow_type == "lightning" else {"fp_type": "ecfp:4"},
         ),
         model=ModelSpec(
-            type="ChemPropModel" if workflow_type == "lightning" else "LGBMRegressorModel",
+            type="ChemPropModel"
+            if workflow_type == "lightning"
+            else "LGBMRegressorModel",
             params={},
         ),
         train=TrainerSpec(
-            type="LightningTrainer" if workflow_type == "lightning" else "SKLearnBasicTrainer",
+            type="LightningTrainer"
+            if workflow_type == "lightning"
+            else "SKLearnBasicTrainer",
             params={
                 "max_epochs": 1,
                 "accelerator": "cpu",
@@ -153,7 +157,9 @@ def test_anvil_workflow_run_code_first_checks_runtime_seams(
     )
     model_cls = type(anvil_workflow.model)
     serialize_spy = mocker.patch.object(model_cls, "serialize")
-    predict_spy = mocker.patch.object(model_cls, "predict", return_value=np.array([2.0]))
+    predict_spy = mocker.patch.object(
+        model_cls, "predict", return_value=np.array([2.0])
+    )
     evaluate_spy = mocker.patch.object(type(anvil_workflow.evals[0]), "evaluate")
     report_spy = mocker.patch.object(type(anvil_workflow.evals[0]), "report")
     if workflow_type == "lightning":
@@ -469,17 +475,17 @@ def test_anvil_workflow_two_way_split_includes_full_dataset_featurization(
     anvil_workflow = anvil_spec.to_workflow()
     X = pd.DataFrame({"smiles": ["CCO", "CCN"]})
     y = pd.DataFrame({"target": [1.0, 2.0]})
-    
+
     train_spy = mocker.patch.object(type(anvil_workflow), "_train", autospec=True)
     mocker.patch.object(type(anvil_workflow.data_spec), "read", return_value=(X, y))
-    
+
     # Mock split returning train and test only.
     mocker.patch.object(
         type(anvil_workflow.split),
         "split",
         return_value=(X, None, X, y, None, y, None),
     )
-    
+
     feat_spy = mocker.patch.object(
         type(anvil_workflow.feat),
         "featurize",
@@ -487,11 +493,13 @@ def test_anvil_workflow_two_way_split_includes_full_dataset_featurization(
         autospec=True,
     )
     mocker.patch.object(type(anvil_workflow.model), "serialize")
-    mocker.patch.object(type(anvil_workflow.model), "predict", return_value=np.array([1.0, 2.0]))
+    mocker.patch.object(
+        type(anvil_workflow.model), "predict", return_value=np.array([1.0, 2.0])
+    )
     save_spy = mocker.patch("openadmet.models.anvil.workflow.zarr.save")
-    
+
     anvil_workflow.run(output_dir=tmp_path / "tst")
-    
+
     train_spy.assert_called_once()
     assert feat_spy.call_count == 3
     assert save_spy.call_count == 2
@@ -602,15 +610,17 @@ def test_anvil_workflow_ensemble_bootstrapping(tmp_path, mocker):
     calibrate_spy.assert_called_once()
     np.testing.assert_array_equal(calibrate_spy.call_args.args[1], val_feat)
     assert calibrate_spy.call_args.args[2].equals(y_val)
-    assert calibrate_spy.call_args.kwargs["method"] == (
-        "isotonic-regression"
-    )
+    assert calibrate_spy.call_args.kwargs["method"] == ("isotonic-regression")
     serialize_spy.assert_called_once()
     serialized_ensemble = serialize_spy.call_args.args[0]
     assert hasattr(serialized_ensemble, "models")
     assert len(serialized_ensemble.models) == anvil_spec.procedure.ensemble.n_models
-    assert len(serialize_spy.call_args.args[1]) == anvil_spec.procedure.ensemble.n_models
-    assert len(serialize_spy.call_args.args[2]) == anvil_spec.procedure.ensemble.n_models
+    assert (
+        len(serialize_spy.call_args.args[1]) == anvil_spec.procedure.ensemble.n_models
+    )
+    assert (
+        len(serialize_spy.call_args.args[2]) == anvil_spec.procedure.ensemble.n_models
+    )
 
     assert random_choice_spy.call_count == anvil_spec.procedure.ensemble.n_models
     for call in random_choice_spy.call_args_list:
