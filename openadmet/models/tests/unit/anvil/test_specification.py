@@ -621,9 +621,9 @@ def test_dataspec_read_train_test_yaml_raises():
 
 def test_modelspec_freeze_weights_succeeds_when_supported(mocker):
     """Test ModelSpec instantiates without error when freeze_weights is supported."""
-    mock_model = mocker.MagicMock(spec=LightningModelBase)
-    mock_model.build = mocker.MagicMock(return_value=None)
-    mock_model.freeze_weights = mocker.MagicMock(return_value=None)
+    mock_model = mocker.create_autospec(LightningModelBase, instance=True)
+    mock_model.build.return_value = None
+    mock_model.freeze_weights.return_value = None
 
     mocker.patch.object(ModelSpec, "to_class", autospec=True, return_value=mock_model)
 
@@ -635,11 +635,9 @@ def test_modelspec_freeze_weights_succeeds_when_supported(mocker):
 
 def test_modelspec_freeze_weights_raises_when_not_implemented(mocker):
     """Test ModelSpec raises ValueError when freeze_weights is not implemented."""
-    mock_model = mocker.MagicMock(spec=LightningModelBase)
-    mock_model.build = mocker.MagicMock(return_value=None)
-    mock_model.freeze_weights = mocker.MagicMock(
-        side_effect=NotImplementedError("not implemented")
-    )
+    mock_model = mocker.create_autospec(LightningModelBase, instance=True)
+    mock_model.build.return_value = None
+    mock_model.freeze_weights.side_effect = NotImplementedError("not implemented")
 
     mocker.patch.object(ModelSpec, "to_class", autospec=True, return_value=mock_model)
 
