@@ -105,7 +105,9 @@ def test_no_ensemble_cross_val_raises_when_both_present():
 
 def test_no_ensemble_cross_val_allows_cv_without_ensemble():
     """Test that cross-validation is allowed if no ensemble is present."""
-    workflow = build_workflow(evals=[SKLearnRepeatedKFoldCrossValidation()], ensemble=None)
+    workflow = build_workflow(
+        evals=[SKLearnRepeatedKFoldCrossValidation()], ensemble=None
+    )
     assert workflow
 
 
@@ -117,7 +119,9 @@ def test_model_trainer_driver_mismatch_raises():
 
 def test_model_trainer_driver_match_succeeds():
     """Test that matching model and trainer drivers succeed."""
-    workflow = build_workflow(model=DummyRegressorModel(), trainer=SKlearnBasicTrainer())
+    workflow = build_workflow(
+        model=DummyRegressorModel(), trainer=SKlearnBasicTrainer()
+    )
     assert workflow
 
 
