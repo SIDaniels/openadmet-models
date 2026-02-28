@@ -1,473 +1,577 @@
-import pytest
-import pandas as pd
+"""Unit tests for anvil/workflow.py — utility functions, class instantiation, Pydantic validators, and driver routing.
+
+Scope is intentionally limited to construction-time behavior. No `.run()`, `_train()`, or execution
+paths are exercised here; those belong in integration tests.
+"""
+
 import numpy as np
-from typing import Any
-from unittest.mock import MagicMock
-from pathlib import Path
-from pydantic import ConfigDict
+import pandas as pd
+import pytest
 
-from openadmet.models.anvil.workflow import (
-    AnvilWorkflow,
-    AnvilDeepLearningWorkflow,
-    _safe_to_numpy,
-    _DRIVER_TO_CLASS,
-)
-from openadmet.models.drivers import DriverType
+from openadmet.models.active_learning.committee import CommitteeRegressor
 from openadmet.models.anvil.specification import DataSpec, Metadata
-from openadmet.models.architecture.model_base import PickleableModelBase, LightningModelBase
-from openadmet.models.trainer.trainer_base import TrainerBase
-from openadmet.models.eval.eval_base import EvalBase
-from openadmet.models.split.split_base import SplitterBase
-from openadmet.models.features.feature_base import FeaturizerBase
-from openadmet.models.active_learning.ensemble_base import EnsembleBase
-from openadmet.models.transforms.transform_base import TransformBase
+from openadmet.models.anvil.workflow import (
+    _DRIVER_TO_CLASS,
+    AnvilDeepLearningWorkflow,
+    AnvilWorkflow,
+    _safe_to_numpy,
+)
+from openadmet.models.architecture.chemprop import ChemPropModel
+from openadmet.models.architecture.dummy import DummyRegressorModel
+from openadmet.models.drivers import DriverType
+from openadmet.models.features.molfeat_fingerprint import FingerprintFeaturizer
+from openadmet.models.split.sklearn import ShuffleSplitter
+from openadmet.models.trainer.lightning import LightningTrainer
+from openadmet.models.trainer.sklearn import SKlearnBasicTrainer
+from openadmet.models.transforms.impute import ImputeTransform
+
+# ---------------------------------------------------------------------------
+# Module-scoped fixtures — constructed once per test session for performance
+# ---------------------------------------------------------------------------
 
 
-# --- Pydantic Stub Classes ---
-
-class ModelStub(PickleableModelBase):
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
-    n_tasks: int = 1
-    driver_type: str = "sklearn"
-
-    @property
-    def _n_tasks(self):
-        return self.n_tasks
-
-    @property
-    def _driver_type(self):
-        return self.driver_type
-
-    def build(self): pass
-    def train(self, X, y): pass
-    def predict(self, X, **kwargs): return None
-
-
-class TrainerStub(TrainerBase):
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
-    accelerator: str = "cpu"
-    devices: int = 1
-    use_wandb: bool = False
-    output_dir: Any = None
-    driver_type: str = "sklearn"
-
-    @property
-    def _driver_type(self):
-        return self.driver_type
-
-    def build(self, **kwargs): pass
-    def train(self, X=None, y=None): return None
-
-
-class SplitterStub(SplitterBase):
-    def split(self, X, y):
-        return (X, None, None, y, None, None, None)
-
-
-class FeaturizerStub(FeaturizerBase):
-    def featurize(self, smiles, *args, **kwargs):
-        return (smiles, None)
-
-
-class EnsembleStub(EnsembleBase):
-    def train(self, X, y): pass
-    def predict(self, X, **kwargs): return None
-    def serialize(self, *args): pass
-    def save(self, path): pass
-    def load(self, path): pass
-    def deserialize(self, *args): pass
-
-
-class TransformStub(TransformBase):
-    def transform(self, X, *args, **kwargs): return X
-
-
-class DLModelStub(LightningModelBase):
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
-    n_tasks: int = 1
-
-    @property
-    def _n_tasks(self):
-        return self.n_tasks
-
-    def build(self, **kwargs): pass
-    def train(self, *args, **kwargs): pass
-    def predict(self, X, **kwargs): return None
-
-
-class DLTrainerStub(TrainerBase):
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
-    accelerator: str = "cpu"
-    devices: int = 1
-    use_wandb: bool = False
-    output_dir: Any = None
-
-    @property
-    def _driver_type(self):
-        return DriverType.LIGHTNING
-
-    def build(self, **kwargs): pass
-    def train(self, train_dl=None, val_dl=None): return None
-
-
-class DLFeaturizerStub(FeaturizerBase):
-    def featurize(self, smiles, *args, **kwargs):
-        return (MagicMock(), None, None, MagicMock())
-
-
-def get_minimal_metadata():
+@pytest.fixture(scope="module")
+def metadata():
+    """Return a minimal real Metadata instance."""
     return Metadata(
         version="v1",
         driver="sklearn",
-        name="test",
+        name="test-workflow",
         build_number=0,
-        description="desc",
-        tag="tag",
-        authors="auth",
-        email="a@b.com",
-        biotargets=[],
-        tags=[],
+        description="Unit test workflow",
+        tag="test-tag",
+        authors="Test Author",
+        email="test@example.com",
+        biotargets=["target1"],
+        tags=["unit-test"],
     )
 
-def make_workflow(cls, **kwargs):
-    model = kwargs.pop("model", ModelStub())
-    trainer = kwargs.pop("trainer", TrainerStub(driver_type=model.driver_type))
-    split = kwargs.pop("split", SplitterStub())
-    feat = kwargs.pop("feat", FeaturizerStub())
-    ensemble = kwargs.pop("ensemble", None)
-    transform = kwargs.pop("transform", None)
 
-    defaults = {
-        "metadata": get_minimal_metadata(),
-        "data_spec": DataSpec(
-            type="csv", input_col="smiles", target_cols=["target"], resource="data.csv"
-        ),
-        "split": split,
-        "feat": feat,
-        "model": model,
-        "trainer": trainer,
-        "evals": [],
-        "ensemble": ensemble,
-        "transform": transform,
-        "model_kwargs": {},
-        "ensemble_kwargs": {},
-        "feat_kwargs": {},
-    }
-    defaults.update(kwargs)
-
-    wf = cls(**defaults)
-
-    # Attach method mocks after construction so tests can assert on them
-    object.__setattr__(wf.model, "build", MagicMock())
-    object.__setattr__(wf.model, "make_new", MagicMock(return_value=wf.model))
-    object.__setattr__(wf.model, "serialize", MagicMock())
-    object.__setattr__(wf.model, "predict", MagicMock(return_value=np.array([1.0])))
-    train_mock = MagicMock(return_value=wf.model)
-    object.__setattr__(wf.trainer, "train", train_mock)
-    object.__setattr__(wf.trainer, "build", MagicMock())
-    if wf.ensemble is not None:
-        object.__setattr__(wf.ensemble, "from_models", MagicMock(return_value=wf.model))
-
-    return wf
+@pytest.fixture(scope="module")
+def data_spec():
+    """Return a minimal real DataSpec instance with one target column."""
+    return DataSpec(
+        type="csv",
+        input_col="smiles",
+        target_cols=["target"],
+        resource="data.csv",
+    )
 
 
-def make_dl_workflow(**kwargs):
-    model = kwargs.pop("model", DLModelStub())
-    trainer = kwargs.pop("trainer", DLTrainerStub())
-    split = kwargs.pop("split", SplitterStub())
-    feat = kwargs.pop("feat", DLFeaturizerStub())
-    ensemble = kwargs.pop("ensemble", None)
-
-    defaults = {
-        "metadata": get_minimal_metadata(),
-        "data_spec": DataSpec(
-            type="csv", input_col="smiles", target_cols=["target"], resource="data.csv"
-        ),
-        "split": split,
-        "feat": feat,
-        "model": model,
-        "trainer": trainer,
-        "evals": [],
-        "ensemble": ensemble,
-        "model_kwargs": {},
-        "ensemble_kwargs": {},
-        "feat_kwargs": {},
-    }
-    defaults.update(kwargs)
-
-    wf = AnvilDeepLearningWorkflow(**defaults)
-
-    object.__setattr__(wf.model, "build", MagicMock())
-    object.__setattr__(wf.model, "deserialize", MagicMock(return_value=wf.model))
-    object.__setattr__(wf.model, "serialize", MagicMock())
-    object.__setattr__(wf.model, "predict", MagicMock(return_value=np.array([1.0])))
-    train_mock = MagicMock(return_value=wf.model)
-    object.__setattr__(wf.trainer, "train", train_mock)
-    object.__setattr__(wf.trainer, "build", MagicMock())
-
-    return wf
+@pytest.fixture(scope="module")
+def sklearn_feat():
+    """Return a real FingerprintFeaturizer using ECFP4 (RDKit-only, no downloads)."""
+    return FingerprintFeaturizer(fp_type="ecfp:4")
 
 
-# --- Unit Tests ---
+# ---------------------------------------------------------------------------
+# Factory helpers — build workflows from fully real Pydantic components
+# ---------------------------------------------------------------------------
 
-def test_safe_to_numpy_converts_series():
-    """Test _safe_to_numpy converts pd.Series to np.ndarray."""
+
+def _make_anvil_workflow(
+    metadata,
+    data_spec,
+    feat,
+    *,
+    split=None,
+    ensemble=None,
+    model_kwargs=None,
+    ensemble_kwargs=None,
+    feat_kwargs=None,
+    transform=None,
+):
+    """Construct an AnvilWorkflow from real lightweight production components."""
+    if split is None:
+        split = ShuffleSplitter(train_size=0.8, val_size=0.0, test_size=0.2)
+    return AnvilWorkflow(
+        metadata=metadata,
+        data_spec=data_spec,
+        split=split,
+        feat=feat,
+        model=DummyRegressorModel(),
+        trainer=SKlearnBasicTrainer(),
+        evals=[],
+        ensemble=ensemble,
+        transform=transform,
+        model_kwargs=model_kwargs or {},
+        ensemble_kwargs=ensemble_kwargs or {},
+        feat_kwargs=feat_kwargs or {},
+    )
+
+
+def _make_dl_workflow(
+    metadata,
+    data_spec,
+    feat,
+    *,
+    split=None,
+    ensemble=None,
+    transform=None,
+    model_kwargs=None,
+    ensemble_kwargs=None,
+):
+    """Construct an AnvilDeepLearningWorkflow from real lightweight production components."""
+    if split is None:
+        split = ShuffleSplitter(train_size=0.8, val_size=0.0, test_size=0.2)
+    return AnvilDeepLearningWorkflow(
+        metadata=metadata,
+        data_spec=data_spec,
+        split=split,
+        feat=feat,
+        model=ChemPropModel(),
+        trainer=LightningTrainer(),
+        evals=[],
+        ensemble=ensemble,
+        transform=transform,
+        model_kwargs=model_kwargs or {},
+        ensemble_kwargs=ensemble_kwargs or {},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Section 1: _safe_to_numpy utility
+# ---------------------------------------------------------------------------
+
+
+def test_safe_to_numpy_series():
+    """Test that _safe_to_numpy converts a pd.Series to a np.ndarray with correct values."""
     s = pd.Series([1.0, 2.0, 3.0])
-    res = _safe_to_numpy(s)
-    assert isinstance(res, np.ndarray)
-    assert res.shape == (3,)
-    assert np.allclose(res, [1.0, 2.0, 3.0])
+    result = _safe_to_numpy(s)
+    assert isinstance(result, np.ndarray)
+    assert result.shape == (3,)
+    np.testing.assert_array_equal(result, np.array([1.0, 2.0, 3.0]))
 
 
-def test_safe_to_numpy_converts_dataframe():
-    """Test _safe_to_numpy converts pd.DataFrame to np.ndarray."""
+def test_safe_to_numpy_dataframe():
+    """Test that _safe_to_numpy converts a pd.DataFrame to a np.ndarray with correct shape and values."""
     df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
-    res = _safe_to_numpy(df)
-    assert isinstance(res, np.ndarray)
-    assert res.shape == (2, 2)
+    result = _safe_to_numpy(df)
+    assert isinstance(result, np.ndarray)
+    assert result.shape == (2, 2)
+    np.testing.assert_array_equal(result, df.to_numpy())
 
 
-def test_safe_to_numpy_passthrough_numpy_array():
-    """Test _safe_to_numpy passes through np.ndarray."""
-    arr = np.array([1.0, 2.0])
-    res = _safe_to_numpy(arr)
-    assert res is arr
+def test_safe_to_numpy_ndarray_passthrough():
+    """Test that _safe_to_numpy returns a np.ndarray unchanged via identity check."""
+    arr = np.array([1.0, 2.0, 3.0])
+    result = _safe_to_numpy(arr)
+    assert result is arr
 
 
-def test_anvilworkflow_check_if_val_needed_raises_for_ensemble_without_val():
-    """Test validation raises if ensemble is used without validation set."""
+# ---------------------------------------------------------------------------
+# Section 2: _DRIVER_TO_CLASS routing dictionary
+# ---------------------------------------------------------------------------
+
+
+def test_driver_to_class_sklearn_routes_to_anvil_workflow():
+    """Test that DriverType.SKLEARN maps to AnvilWorkflow."""
+    assert _DRIVER_TO_CLASS[DriverType.SKLEARN] is AnvilWorkflow
+
+
+def test_driver_to_class_lightning_routes_to_dl_workflow():
+    """Test that DriverType.LIGHTNING maps to AnvilDeepLearningWorkflow."""
+    assert _DRIVER_TO_CLASS[DriverType.LIGHTNING] is AnvilDeepLearningWorkflow
+
+
+def test_driver_to_class_has_exactly_two_entries():
+    """Test that _DRIVER_TO_CLASS contains exactly the two expected driver keys."""
+    assert set(_DRIVER_TO_CLASS.keys()) == {DriverType.SKLEARN, DriverType.LIGHTNING}
+
+
+# ---------------------------------------------------------------------------
+# Section 3: AnvilWorkflow happy-path construction
+# ---------------------------------------------------------------------------
+
+
+def test_anvil_workflow_constructs_with_real_components(
+    metadata, data_spec, sklearn_feat
+):
+    """Test that AnvilWorkflow can be constructed from real lightweight registered components."""
+    wf = _make_anvil_workflow(metadata, data_spec, sklearn_feat)
+    assert isinstance(wf, AnvilWorkflow)
+
+
+def test_anvil_workflow_driver_type_is_sklearn(metadata, data_spec, sklearn_feat):
+    """Test that AnvilWorkflow correctly exposes the SKLEARN driver type."""
+    wf = _make_anvil_workflow(metadata, data_spec, sklearn_feat)
+    assert wf._driver_type == DriverType.SKLEARN
+
+
+# ---------------------------------------------------------------------------
+# Section 4: AnvilWorkflow.check_if_val_needed validator
+# ---------------------------------------------------------------------------
+
+
+def test_anvil_workflow_ensemble_without_val_raises(metadata, data_spec, sklearn_feat):
+    """Test that constructing an ensemble AnvilWorkflow without a validation split raises ValueError."""
+    split = ShuffleSplitter(train_size=0.8, val_size=0.0, test_size=0.2)
     with pytest.raises(ValueError, match="Ensemble models require a validation set"):
-        make_workflow(
-            AnvilWorkflow,
-            ensemble=EnsembleStub(),
-            split=SplitterStub(train_size=1.0, val_size=0.0, test_size=0.0),
+        _make_anvil_workflow(
+            metadata,
+            data_spec,
+            sklearn_feat,
+            split=split,
+            ensemble=CommitteeRegressor(),
             ensemble_kwargs={"n_models": 2},
         )
 
 
-def test_anvilworkflow_check_no_finetuning_raises_with_model_path():
-    """Test validation raises if finetuning paths are provided for single model."""
-    with pytest.raises(ValueError, match="Finetuning .* is not supported"):
-        make_workflow(
-            AnvilWorkflow,
-            model_kwargs={"param_path": "p.pt"}
+def test_anvil_workflow_val_without_ensemble_raises(metadata, data_spec, sklearn_feat):
+    """Test that requesting a validation split without an ensemble raises ValueError."""
+    split = ShuffleSplitter(train_size=0.7, val_size=0.1, test_size=0.2)
+    with pytest.raises(ValueError, match="Validation set requested, but not used"):
+        _make_anvil_workflow(
+            metadata, data_spec, sklearn_feat, split=split, ensemble=None
         )
 
 
-def test_anvilworkflow_check_no_finetuning_raises_with_ensemble_path():
-    """Test validation raises if finetuning paths are provided for ensemble."""
-    with pytest.raises(ValueError, match="Finetuning .* is not supported"):
-        make_workflow(
-            AnvilWorkflow,
-            ensemble=EnsembleStub(),
-            ensemble_kwargs={"param_paths": ["p.pt"]},
-            split=SplitterStub(train_size=0.8, val_size=0.1, test_size=0.1),
-        )
-
-
-def test_anvildeeplearningworkflow_check_no_transform_raises():
-    """Test DL workflow raises if transform is provided."""
-    with pytest.raises(ValueError, match="Transform step is not supported"):
-        make_workflow(
-            AnvilDeepLearningWorkflow,
-            transform=TransformStub(),
-            trainer=TrainerStub(driver_type="lightning"),
-            model=ModelStub(n_tasks=1, driver_type="lightning"),
-        )
-
-
-def test_anvildeeplearningworkflow_check_if_val_needed_raises_for_ensemble_without_val():
-    """Test DL workflow raises if ensemble is used without validation set."""
-    with pytest.raises(ValueError, match="Ensemble models require a validation set"):
-        make_workflow(
-            AnvilDeepLearningWorkflow,
-            ensemble=EnsembleStub(),
-            split=SplitterStub(train_size=1.0, val_size=0.0, test_size=0.0),
-            trainer=TrainerStub(driver_type="lightning"),
-            model=ModelStub(n_tasks=1, driver_type="lightning"),
-        )
-
-
-def test_anvilworkflow_train_calls_build_and_train(tmp_path, mocker):
-    """Test _train method calls model.build and trainer.train, and updates workflow.model."""
-    workflow = make_workflow(AnvilWorkflow)
-    
-    X_train = pd.Series(["C", "CC"])
-    y_train = pd.DataFrame({"target": [1.0, 2.0]})
-    
-    # Capture original model before _train updates workflow.model
-    original_model = workflow.model
-    sentinel_model = ModelStub()
-    workflow.trainer.train.return_value = sentinel_model
-    
-    workflow._train(X_train, y_train, tmp_path)
-    
-    original_model.build.assert_called_once()
-    workflow.trainer.train.assert_called_once()
-    assert workflow.model is sentinel_model
-
-
-def test_anvilworkflow_train_ensemble_calls_trainer_n_models_times(tmp_path, mocker):
-    """Test _train_ensemble calls trainer n_models times."""
-    workflow = make_workflow(
-        AnvilWorkflow,
-        ensemble=EnsembleStub(),
-        ensemble_kwargs={"n_models": 3},
-        split=SplitterStub(train_size=0.8, val_size=0.1, test_size=0.1),
+def test_anvil_workflow_ensemble_with_val_succeeds(metadata, data_spec, sklearn_feat):
+    """Test that an ensemble AnvilWorkflow with a validation split constructs without error."""
+    split = ShuffleSplitter(train_size=0.7, val_size=0.1, test_size=0.2)
+    wf = _make_anvil_workflow(
+        metadata,
+        data_spec,
+        sklearn_feat,
+        split=split,
+        ensemble=CommitteeRegressor(),
+        ensemble_kwargs={"n_models": 2},
     )
-    
-    X_train = np.array([[1.0], [2.0], [3.0]])
-    y_train = np.array([1.0, 2.0, 3.0])
-    
-    # Mock make_new to return self or new stub
-    workflow.model.make_new.return_value = workflow.model
-    workflow.trainer.train.return_value = workflow.model
-    
-    workflow._train_ensemble(X_train, y_train, tmp_path)
-    
-    assert workflow.trainer.train.call_count == 3
-    assert workflow.model.build.call_count == 3
-    workflow.ensemble.from_models.assert_called_once()
+    assert isinstance(wf, AnvilWorkflow)
+    assert wf.ensemble is not None
 
 
-def test_anvilworkflow_run_without_test_skips_eval(tmp_path, mocker):
-    """Test run() skips evaluation if no test set is produced."""
-    X_train = pd.Series(["C"])
-    y_train = pd.DataFrame({"target": [1]})
-
-    workflow = make_workflow(AnvilWorkflow)
-    mocker.patch.object(DataSpec, "read", autospec=True, return_value=(X_train, y_train))
-    mocker.patch.object(SplitterStub, "split", autospec=True,
-                        return_value=(X_train, None, None, y_train, None, None, None))
-    mocker.patch.object(FeaturizerStub, "featurize", autospec=True,
-                        return_value=(np.array([[1]]), None))
-    mocker.patch("openadmet.models.anvil.workflow.zarr.save")
-
-    eval_mock = MagicMock()
-    workflow.evals = [eval_mock]
-
-    workflow.run(output_dir=tmp_path)
-
-    eval_mock.evaluate.assert_not_called()
+# ---------------------------------------------------------------------------
+# Section 5: AnvilWorkflow.check_no_finetuning validator
+# ---------------------------------------------------------------------------
 
 
-def test_anvilworkflow_run_with_test_calls_eval(tmp_path, mocker):
-    """Test run() calls evaluation when test set is present."""
-    X_train = pd.Series(["C"])
-    y_train = pd.DataFrame({"target": [1.0]})
-    X_test = pd.Series(["CC"])
-    y_test = pd.DataFrame({"target": [2.0]})
-    X = pd.Series(["C", "CC"])
-    y = pd.DataFrame({"target": [1.0, 2.0]})
-
-    workflow = make_workflow(AnvilWorkflow)
-    mocker.patch.object(DataSpec, "read", autospec=True, return_value=(X, y))
-    mocker.patch.object(SplitterStub, "split", autospec=True,
-                        return_value=(X_train, None, X_test, y_train, None, y_test, None))
-    mocker.patch.object(FeaturizerStub, "featurize", autospec=True,
-                        return_value=(np.array([[1.0]]), None))
-    mocker.patch("openadmet.models.anvil.workflow.zarr.save")
-
-    # Mock model prediction
-    workflow.model.predict.return_value = np.array([2.0])
-
-    eval_mock = MagicMock()
-    workflow.evals = [eval_mock]
-
-    workflow.run(output_dir=tmp_path)
-
-    eval_mock.evaluate.assert_called_once()
-    eval_mock.report.assert_called_once()
-
-    call_kwargs = eval_mock.evaluate.call_args.kwargs
-    assert call_kwargs["tag"] == "tag"
-    assert call_kwargs["target_labels"] == ["target"]
-    assert call_kwargs["y_true"].shape == (1, 1)
-    assert call_kwargs["y_true"].iloc[0, 0] == pytest.approx(2.0)
+# Single-model branch: all triggering combinations of path kwargs
+@pytest.mark.parametrize(
+    "model_kwargs",
+    [
+        {"param_path": "model.json"},
+        {"serial_path": "model.pkl"},
+        {"param_path": "model.json", "serial_path": "model.pkl"},
+    ],
+    ids=["param-path-only", "serial-path-only", "both-paths"],
+)
+def test_anvil_workflow_single_model_finetuning_raises(
+    metadata, data_spec, sklearn_feat, model_kwargs
+):
+    """Test that any finetuning path kwarg for a single model raises ValueError."""
+    with pytest.raises(
+        ValueError, match="Finetuning from serialized model is not supported"
+    ):
+        _make_anvil_workflow(
+            metadata, data_spec, sklearn_feat, model_kwargs=model_kwargs
+        )
 
 
-def test_anvilworkflow_run_classification_uses_predict_proba(tmp_path, mocker):
-    """Test run() uses predict_proba for classification if available."""
-    X_train = pd.Series(["C"])
-    y_train = pd.DataFrame({"target": [0]})
-    X_test = pd.Series(["CC"])
-    y_test = pd.DataFrame({"target": [1]})
-    X = pd.Series(["C", "CC"])
-    y = pd.DataFrame({"target": [0, 1]})
-
-    workflow = make_workflow(AnvilWorkflow)
-    mocker.patch.object(DataSpec, "read", autospec=True, return_value=(X, y))
-    mocker.patch.object(SplitterStub, "split", autospec=True,
-                        return_value=(X_train, None, X_test, y_train, None, y_test, None))
-    mocker.patch.object(FeaturizerStub, "featurize", autospec=True, return_value=(np.array([[1]]), None))
-    mocker.patch("openadmet.models.anvil.workflow.zarr.save")
-
-    # Attach predict_proba mock to model instance
-    object.__setattr__(workflow.model, "predict_proba",
-                       MagicMock(return_value=np.array([[0.1, 0.9]])))
-
-    workflow.run(output_dir=tmp_path)
-
-    workflow.model.predict_proba.assert_called_once()
+# Single-model branch: safe kwargs that must never trigger the validator
+@pytest.mark.parametrize(
+    "model_kwargs",
+    [
+        {},
+        {"n_estimators": 100},
+    ],
+    ids=["empty-kwargs", "unrelated-key"],
+)
+def test_anvil_workflow_single_model_no_finetuning_succeeds(
+    metadata, data_spec, sklearn_feat, model_kwargs
+):
+    """Test that empty or unrelated model_kwargs do not trigger the finetuning validator."""
+    wf = _make_anvil_workflow(
+        metadata, data_spec, sklearn_feat, model_kwargs=model_kwargs
+    )
+    assert isinstance(wf, AnvilWorkflow)
+    assert wf.model_kwargs == model_kwargs
 
 
-def test_driver_to_class_mapping():
-    """Test driver to class mapping dictionary."""
-    assert _DRIVER_TO_CLASS[DriverType.SKLEARN] == AnvilWorkflow
-    assert _DRIVER_TO_CLASS[DriverType.LIGHTNING] == AnvilDeepLearningWorkflow
+# Ensemble branch: all triggering combinations of path kwargs
+@pytest.mark.parametrize(
+    "path_kwargs",
+    [
+        {"param_paths": ["p1.json", "p2.json"]},
+        {"serial_paths": ["s1.pkl", "s2.pkl"]},
+        {"param_paths": ["p1.json", "p2.json"], "serial_paths": ["s1.pkl", "s2.pkl"]},
+    ],
+    ids=["param-paths-only", "serial-paths-only", "both-path-types"],
+)
+def test_anvil_workflow_ensemble_finetuning_raises(
+    metadata, data_spec, sklearn_feat, path_kwargs
+):
+    """Test that any finetuning path kwarg for an ensemble raises ValueError."""
+    split = ShuffleSplitter(train_size=0.7, val_size=0.1, test_size=0.2)
+    ensemble_kwargs = {"n_models": 2, **path_kwargs}
+    with pytest.raises(
+        ValueError, match="Finetuning from serialized ensemble models is not supported"
+    ):
+        _make_anvil_workflow(
+            metadata,
+            data_spec,
+            sklearn_feat,
+            split=split,
+            ensemble=CommitteeRegressor(),
+            ensemble_kwargs=ensemble_kwargs,
+        )
 
 
-# --- AnvilDeepLearningWorkflow tests (Refinement 7) ---
-
-def test_anvildeeplearningworkflow_train_single_model_build_from_scratch(tmp_path):
-    """Test DL _train builds model from scratch and updates workflow.model."""
-    workflow = make_dl_workflow()
-
-    # Capture original model before _train updates workflow.model
-    original_model = workflow.model
-    sentinel_model = DLModelStub()
-    workflow.trainer.train.return_value = sentinel_model
-
-    workflow._train(None, None, None, tmp_path)
-
-    original_model.build.assert_called_once()
-    workflow.trainer.train.assert_called_once()
-    assert workflow.model is sentinel_model
-
-
-def test_anvildeeplearningworkflow_train_deserializes_when_paths_provided(tmp_path):
-    """Test DL _train deserializes model when param_path and serial_path are provided."""
-    workflow = make_dl_workflow(model_kwargs={"param_path": "p.pt", "serial_path": "s.pt"})
-
-    sentinel_model = DLModelStub()
-    original_model = workflow.model
-    original_model.deserialize.return_value = sentinel_model
-    workflow.trainer.train.return_value = sentinel_model
-
-    workflow._train(None, None, None, tmp_path)
-
-    original_model.deserialize.assert_called_once()
-    original_model.build.assert_not_called()
-    workflow.trainer.train.assert_called_once()
+# Ensemble branch: non-path ensemble_kwargs that must never trigger the validator
+@pytest.mark.parametrize(
+    "ensemble_kwargs",
+    [
+        {"n_models": 2},
+        {"n_models": 2, "calibration_method": "isotonic-regression"},
+    ],
+    ids=["n-models-only", "with-calibration-method"],
+)
+def test_anvil_workflow_ensemble_no_finetuning_succeeds(
+    metadata, data_spec, sklearn_feat, ensemble_kwargs
+):
+    """Test that ensemble_kwargs containing only non-path keys do not trigger the finetuning validator."""
+    split = ShuffleSplitter(train_size=0.7, val_size=0.1, test_size=0.2)
+    wf = _make_anvil_workflow(
+        metadata,
+        data_spec,
+        sklearn_feat,
+        split=split,
+        ensemble=CommitteeRegressor(),
+        ensemble_kwargs=ensemble_kwargs,
+    )
+    assert isinstance(wf, AnvilWorkflow)
+    assert wf.ensemble_kwargs == ensemble_kwargs
 
 
-def test_anvildeeplearningworkflow_run_single_model(tmp_path, mocker):
-    """Test AnvilDeepLearningWorkflow run completes for single model with no test set."""
-    X_data = pd.Series(["C"], name="smiles")
-    y_data = pd.DataFrame({"target": [1.0]})
+# feat_kwargs default_factory coverage — any content must pass construction
+@pytest.mark.parametrize(
+    "feat_kwargs",
+    [
+        {},
+        {"type": "FingerprintFeaturizer", "params": {"fp_type": "ecfp:4"}},
+    ],
+    ids=["empty-feat-kwargs", "with-type-and-params"],
+)
+def test_anvil_workflow_feat_kwargs_passthrough(
+    metadata, data_spec, sklearn_feat, feat_kwargs
+):
+    """Test that arbitrary feat_kwargs content does not affect workflow construction."""
+    wf = _make_anvil_workflow(
+        metadata, data_spec, sklearn_feat, feat_kwargs=feat_kwargs
+    )
+    assert isinstance(wf, AnvilWorkflow)
+    assert wf.feat_kwargs == feat_kwargs
 
-    workflow = make_dl_workflow()
 
-    mock_dl = MagicMock()
-    mock_ds = MagicMock()
-    mocker.patch.object(DataSpec, "read", autospec=True, return_value=(X_data, y_data))
-    mocker.patch.object(SplitterStub, "split", autospec=True,
-                        return_value=(X_data, None, None, y_data, None, None, None))
-    mocker.patch.object(DLFeaturizerStub, "featurize", autospec=True,
-                        return_value=(mock_dl, None, None, mock_ds))
-    mocker.patch("openadmet.models.anvil.workflow.torch.save")
+# ---------------------------------------------------------------------------
+# Section 6: AnvilDeepLearningWorkflow happy-path construction
+# ---------------------------------------------------------------------------
 
-    workflow.run(output_dir=tmp_path / "out")
 
-    workflow.trainer.train.assert_called_once()
-    assert workflow.resolved_output_dir is not None
+def test_dl_workflow_constructs_with_real_components(metadata, data_spec, sklearn_feat):
+    """Test that AnvilDeepLearningWorkflow can be constructed from real lightweight registered components."""
+    wf = _make_dl_workflow(metadata, data_spec, sklearn_feat)
+    assert isinstance(wf, AnvilDeepLearningWorkflow)
+
+
+def test_dl_workflow_driver_type_is_lightning(metadata, data_spec, sklearn_feat):
+    """Test that AnvilDeepLearningWorkflow correctly exposes the LIGHTNING driver type."""
+    wf = _make_dl_workflow(metadata, data_spec, sklearn_feat)
+    assert wf._driver_type == DriverType.LIGHTNING
+
+
+# ---------------------------------------------------------------------------
+# Section 7: AnvilDeepLearningWorkflow.check_no_transform validator
+# ---------------------------------------------------------------------------
+
+
+def test_dl_workflow_rejects_transform(metadata, data_spec, sklearn_feat):
+    """Test that specifying a transform step in a DL workflow raises ValueError."""
+    with pytest.raises(ValueError, match="Transform step is not supported"):
+        _make_dl_workflow(
+            metadata, data_spec, sklearn_feat, transform=ImputeTransform()
+        )
+
+
+def test_dl_workflow_accepts_no_transform(metadata, data_spec, sklearn_feat):
+    """Test that a DL workflow without a transform step constructs successfully."""
+    wf = _make_dl_workflow(metadata, data_spec, sklearn_feat, transform=None)
+    assert wf.transform is None
+
+
+# ---------------------------------------------------------------------------
+# Section 8: AnvilDeepLearningWorkflow.check_if_val_needed validator
+# ---------------------------------------------------------------------------
+
+
+def test_dl_workflow_ensemble_requires_val_raises(metadata, data_spec, sklearn_feat):
+    """Test that a DL ensemble workflow without a validation split raises ValueError."""
+    split = ShuffleSplitter(train_size=0.8, val_size=0.0, test_size=0.2)
+    with pytest.raises(ValueError, match="Ensemble models require a validation set"):
+        _make_dl_workflow(
+            metadata,
+            data_spec,
+            sklearn_feat,
+            split=split,
+            ensemble=CommitteeRegressor(),
+        )
+
+
+def test_dl_workflow_ensemble_with_val_succeeds(metadata, data_spec, sklearn_feat):
+    """Test that a DL ensemble workflow with a validation split constructs successfully."""
+    split = ShuffleSplitter(train_size=0.7, val_size=0.1, test_size=0.2)
+    wf = _make_dl_workflow(
+        metadata,
+        data_spec,
+        sklearn_feat,
+        split=split,
+        ensemble=CommitteeRegressor(),
+    )
+    assert isinstance(wf, AnvilDeepLearningWorkflow)
+    assert wf.ensemble is not None
+
+
+# ---------------------------------------------------------------------------
+# Section 9: AnvilDeepLearningWorkflow.check_finetuning_paths validator
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "model_kwargs,match",
+    [
+        ({"param_path": "/nonexistent/model.json"}, "must be provided together"),
+        ({"serial_path": "/nonexistent/model.pth"}, "must be provided together"),
+        (
+            {
+                "param_path": "/nonexistent/model.json",
+                "serial_path": "/nonexistent/model.pth",
+            },
+            "does not exist",
+        ),
+    ],
+    ids=["param-path-only", "serial-path-only", "both-nonexistent"],
+)
+def test_dl_workflow_single_model_finetuning_path_raises(
+    metadata, data_spec, sklearn_feat, model_kwargs, match
+):
+    """Test that mismatched or nonexistent single-model finetuning paths raise ValueError."""
+    with pytest.raises(ValueError, match=match):
+        _make_dl_workflow(metadata, data_spec, sklearn_feat, model_kwargs=model_kwargs)
+
+
+def test_dl_workflow_single_model_finetuning_path_succeeds_no_paths(
+    metadata, data_spec, sklearn_feat
+):
+    """Test that empty model_kwargs passes finetuning path validation."""
+    wf = _make_dl_workflow(metadata, data_spec, sklearn_feat, model_kwargs={})
+    assert isinstance(wf, AnvilDeepLearningWorkflow)
+    assert wf.model_kwargs == {}
+
+
+def test_dl_workflow_single_model_finetuning_path_succeeds_both_exist(
+    metadata, data_spec, sklearn_feat, tmp_path
+):
+    """Test that both finetuning paths pointing to real files passes validation."""
+    param_file = tmp_path / "model.json"
+    serial_file = tmp_path / "model.pth"
+    param_file.touch()
+    serial_file.touch()
+
+    model_kwargs = {"param_path": str(param_file), "serial_path": str(serial_file)}
+    wf = _make_dl_workflow(metadata, data_spec, sklearn_feat, model_kwargs=model_kwargs)
+    assert isinstance(wf, AnvilDeepLearningWorkflow)
+    assert wf.model_kwargs == model_kwargs
+
+
+@pytest.mark.parametrize(
+    "path_kwargs,match",
+    [
+        (
+            {"param_paths": ["/nonexistent/p1.json", "/nonexistent/p2.json"]},
+            "must be provided together",
+        ),
+        (
+            {"serial_paths": ["/nonexistent/s1.pth", "/nonexistent/s2.pth"]},
+            "must be provided together",
+        ),
+        (
+            {
+                "param_paths": ["/nonexistent/p1.json", "/nonexistent/p2.json"],
+                "serial_paths": ["/nonexistent/s1.pth"],
+            },
+            "equal length",
+        ),
+        (
+            {
+                "param_paths": ["/nonexistent/p1.json", "/nonexistent/p2.json"],
+                "serial_paths": ["/nonexistent/s1.pth", "/nonexistent/s2.pth"],
+            },
+            "does not exist",
+        ),
+    ],
+    ids=[
+        "param-paths-only",
+        "serial-paths-only",
+        "unequal-lengths",
+        "both-nonexistent",
+    ],
+)
+def test_dl_workflow_ensemble_finetuning_path_raises(
+    metadata, data_spec, sklearn_feat, path_kwargs, match
+):
+    """Test that mismatched, unequal-length, or nonexistent ensemble finetuning paths raise ValueError."""
+    split = ShuffleSplitter(train_size=0.7, val_size=0.1, test_size=0.2)
+    ensemble_kwargs = {"n_models": 2, **path_kwargs}
+    with pytest.raises(ValueError, match=match):
+        _make_dl_workflow(
+            metadata,
+            data_spec,
+            sklearn_feat,
+            split=split,
+            ensemble=CommitteeRegressor(),
+            ensemble_kwargs=ensemble_kwargs,
+        )
+
+
+def test_dl_workflow_ensemble_finetuning_path_succeeds_no_paths(
+    metadata, data_spec, sklearn_feat
+):
+    """Test that ensemble_kwargs with no path keys passes finetuning path validation."""
+    split = ShuffleSplitter(train_size=0.7, val_size=0.1, test_size=0.2)
+    wf = _make_dl_workflow(
+        metadata,
+        data_spec,
+        sklearn_feat,
+        split=split,
+        ensemble=CommitteeRegressor(),
+        ensemble_kwargs={"n_models": 2},
+    )
+    assert isinstance(wf, AnvilDeepLearningWorkflow)
+    assert wf.ensemble is not None
+
+
+def test_dl_workflow_ensemble_finetuning_path_succeeds_both_exist(
+    metadata, data_spec, sklearn_feat, tmp_path
+):
+    """Test that ensemble finetuning paths pointing to real files passes validation."""
+    p1, p2 = tmp_path / "m0.json", tmp_path / "m1.json"
+    s1, s2 = tmp_path / "m0.pth", tmp_path / "m1.pth"
+    for f in [p1, p2, s1, s2]:
+        f.touch()
+
+    split = ShuffleSplitter(train_size=0.7, val_size=0.1, test_size=0.2)
+    ensemble_kwargs = {
+        "n_models": 2,
+        "param_paths": [str(p1), str(p2)],
+        "serial_paths": [str(s1), str(s2)],
+    }
+    wf = _make_dl_workflow(
+        metadata,
+        data_spec,
+        sklearn_feat,
+        split=split,
+        ensemble=CommitteeRegressor(),
+        ensemble_kwargs=ensemble_kwargs,
+    )
+    assert isinstance(wf, AnvilDeepLearningWorkflow)
+    assert wf.ensemble_kwargs == ensemble_kwargs
