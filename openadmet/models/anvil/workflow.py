@@ -5,9 +5,7 @@ import uuid
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
-
 from typing import Any
-
 
 import numpy as np
 import pandas as pd
@@ -16,8 +14,8 @@ import zarr
 from loguru import logger
 from pydantic import model_validator
 
-from openadmet.models.drivers import DriverType
 from openadmet.models.anvil.workflow_base import AnvilWorkflowBase
+from openadmet.models.drivers import DriverType
 
 
 def _safe_to_numpy(X):
@@ -433,6 +431,55 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                 "Ensemble models require a validation set for uncertainty calibration."
             )
 
+        return self
+
+    @model_validator(mode="after")
+    def check_finetuning_paths(self):
+        """
+        Check that finetuning path pairs are consistent and exist on disk.
+
+        Both ``param_path`` and ``serial_path`` must be provided together (or
+        neither). When both are provided, both paths must exist before training
+        begins. The same requirement applies to ``param_paths`` / ``serial_paths``
+        for ensemble workflows, which must additionally be equal-length lists.
+
+        Raises
+        ------
+        ValueError
+            If exactly one of the path pair is provided, if provided paths do
+            not exist on disk, or if ensemble path lists have unequal length.
+
+        """
+        if not self.ensemble:
+            param_path = self.model_kwargs.get("param_path")
+            serial_path = self.model_kwargs.get("serial_path")
+            if (param_path is None) != (serial_path is None):
+                raise ValueError(
+                    "Both param_path and serial_path must be provided together for finetuning."
+                )
+            if param_path is not None:
+                if not Path(param_path).exists():
+                    raise ValueError(f"param_path '{param_path}' does not exist.")
+                if not Path(serial_path).exists():
+                    raise ValueError(f"serial_path '{serial_path}' does not exist.")
+        else:
+            param_paths = self.ensemble_kwargs.get("param_paths")
+            serial_paths = self.ensemble_kwargs.get("serial_paths")
+            if (param_paths is None) != (serial_paths is None):
+                raise ValueError(
+                    "Both param_paths and serial_paths must be provided together for ensemble finetuning."
+                )
+            if param_paths is not None:
+                if len(param_paths) != len(serial_paths):
+                    raise ValueError(
+                        "param_paths and serial_paths must have equal length."
+                    )
+                for p in param_paths:
+                    if not Path(p).exists():
+                        raise ValueError(f"param_path '{p}' does not exist.")
+                for s in serial_paths:
+                    if not Path(s).exists():
+                        raise ValueError(f"serial_path '{s}' does not exist.")
         return self
 
     def _train(
