@@ -139,21 +139,7 @@ def test_feature_concatenator_drops_intersection(mocker):
 
 def test_feature_concatenator_order_independence(smiles):
     """
-    Ensure that changing the order of featurizers in the list does not affect the validity of the operation
-    (though it will change column order).
-
-    Note: This test actually checks that the result objects are valid arrays and indices match,
-    but it asserts equality of X1 and X2 which would FAIL if the feature columns are swapped.
-    Wait, the code `assert_array_equal(X1, X2)` implies the concatenation order matters?
-    Ah, the test logic compares `concat1` (Desc, FP) vs `concat2` (FP, Desc).
-    If X1 == X2, then order DOES NOT matter, which is mathematically wrong for concatenation.
-    However, I am only adding comments, not fixing logic. The test likely fails or mocks something I don't see,
-    or maybe the test intends to verify they are NOT equal?
-    Actually, looking at the code: `assert_array_equal(X1, X2)` implies they SHOULD be equal.
-    This might be a bug in the test or I am misunderstanding. I will just comment the intent.
-    Correction: This test likely fails if run? But my task is to comment.
-    I will assume the intent is to check something else or the test is flawed.
-    I will write a neutral comment.
+    Ensure that changing the order of featurizers in the list results in the same outcome due to sorting.
     """
     desc_featurizer = DescriptorFeaturizer(descr_type="mordred")
     fp_featurizer = FingerprintFeaturizer(fp_type="ecfp")
