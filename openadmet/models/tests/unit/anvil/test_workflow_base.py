@@ -1,14 +1,15 @@
 import pytest
 from pydantic import ConfigDict
-from openadmet.models.anvil.workflow_base import AnvilWorkflowBase
-from openadmet.models.anvil.specification import DataSpec, Metadata
-from openadmet.models.architecture.model_base import PickleableModelBase
-from openadmet.models.trainer.trainer_base import TrainerBase
-from openadmet.models.eval.eval_base import EvalBase
-from openadmet.models.split.split_base import SplitterBase
-from openadmet.models.features.feature_base import FeaturizerBase
+
 from openadmet.models.active_learning.ensemble_base import EnsembleBase
+from openadmet.models.anvil.specification import DataSpec, Metadata
+from openadmet.models.anvil.workflow_base import AnvilWorkflowBase
+from openadmet.models.architecture.model_base import PickleableModelBase
 from openadmet.models.drivers import DriverType
+from openadmet.models.eval.eval_base import EvalBase
+from openadmet.models.features.feature_base import FeaturizerBase
+from openadmet.models.split.split_base import SplitterBase
+from openadmet.models.trainer.trainer_base import TrainerBase
 
 
 # Concrete workflow implementation for testing
@@ -82,6 +83,7 @@ def build_workflow(
 
 # --- Tests ---
 
+
 def test_multitask_check_passes_when_counts_match(mocker):
     """Test that validation passes when model n_tasks matches data target_cols."""
     model = mocker.create_autospec(PickleableModelBase, instance=True)
@@ -108,7 +110,9 @@ def test_no_ensemble_cross_val_raises_when_both_present(mocker):
     eval_mock = mocker.create_autospec(EvalBase, instance=True)
     eval_mock.is_cross_val = True
     eval_mock._driver_type = DriverType.SKLEARN
-    with pytest.raises(ValueError, match="Ensemble models cannot be used with cross-validation"):
+    with pytest.raises(
+        ValueError, match="Ensemble models cannot be used with cross-validation"
+    ):
         build_workflow(mocker, ensemble=ensemble, evals=[eval_mock])
 
 
@@ -152,7 +156,9 @@ def test_cv_trainer_compatibility_raises_on_driver_mismatch(mocker):
     eval_mock = mocker.create_autospec(EvalBase, instance=True)
     eval_mock.is_cross_val = True
     eval_mock._driver_type = DriverType.LIGHTNING
-    with pytest.raises(ValueError, match="Trainer driver type .* does not match evaluation"):
+    with pytest.raises(
+        ValueError, match="Trainer driver type .* does not match evaluation"
+    ):
         build_workflow(mocker, trainer=trainer, evals=[eval_mock])
 
 
