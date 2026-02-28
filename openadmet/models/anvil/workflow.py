@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import torch
 import zarr
+from lightning import pytorch as pl
 from loguru import logger
 from pydantic import model_validator
 
@@ -120,18 +121,31 @@ class AnvilWorkflow(AnvilWorkflowBase):
             bootstrap_dir = output_dir / f"bootstrap_{i}"
             bootstrap_dir.mkdir(parents=True, exist_ok=True)
 
-            # Bootstrap train data
-            logger.info("Bootstrapping train data")
-            bootstrap_indices = np.random.choice(
-                np.arange(len(X_train_feat)), size=len(X_train_feat), replace=True
-            )
-            X_train_feat_bootstrap = X_train_feat[bootstrap_indices]
-            y_train_bootstrap = y_train[bootstrap_indices]
-            logger.info("Data bootstrapped")
+            if use_bagging:
+                # Bootstrap train data
+                logger.info("Bootstrapping train data")
+                bootstrap_indices = np.random.choice(
+                    np.arange(len(X_train_feat)), size=len(X_train_feat), replace=True
+                )
+                X_train_feat_bootstrap = X_train_feat[bootstrap_indices]
+                y_train_bootstrap = y_train[bootstrap_indices]
+                logger.info("Data bootstrapped")
+            else:
+                X_train_feat_bootstrap = X_train_feat
+                y_train_bootstrap = y_train
 
             # Build model from scratch
             logger.info(f"Building model {i}")
             bootstrap_model = self.model.make_new()
+
+            # Set seed for model
+            if hasattr(bootstrap_model, "random_state"):
+                bootstrap_model.random_state = global_seed + i
+            else:
+                logger.warning(
+                    f"Model {bootstrap_model} does not support random_state seeding."
+                )
+
             bootstrap_model.build()
             logger.info(f"Model {i} built")
 
@@ -551,14 +565,23 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             self.feat = self.feat.make_new()
             self.trainer = self.trainer.make_new()
 
-            # Bootstrap train data
-            logger.info("Bootstrapping train data")
-            bootstrap_indices = np.random.choice(
-                np.arange(len(X_train)), size=len(X_train), replace=True
-            )
-            X_train_bootstrap = X_train[bootstrap_indices]
-            y_train_bootstrap = y_train[bootstrap_indices]
-            logger.info("Data bootstrapped")
+            # Seed everything for reproducibility
+            pl.seed_everything(global_seed + i)
+
+            # Bootstrap data if using bagging
+            if use_bagging:
+                logger.info("Bootstrapping train data")
+                bootstrap_indices = np.random.choice(
+                    np.arange(len(X_train)), size=len(X_train), replace=True
+                )
+                X_train_bootstrap = X_train[bootstrap_indices]
+                y_train_bootstrap = y_train[bootstrap_indices]
+                logger.info("Data bootstrapped")
+
+            # Otherwise use full data for each model
+            else:
+                X_train_bootstrap = X_train
+                y_train_bootstrap = y_train
 
             # Featurize splits
             logger.info("Featurizing train data")
@@ -568,6 +591,8 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
                     y_train_bootstrap,
                 )
             )
+
+            # Save dataloader
             torch.save(
                 bootstrap_dataloader,
                 bootstrap_dir / "train_dataloader.pth",
