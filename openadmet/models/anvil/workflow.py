@@ -820,7 +820,6 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
         else:
             logger.info("No test set specified, predictions skipped")
 
-        # if y_test is not None:
         # Run evaluation on train/test
         logger.info("Evaluating")
 
@@ -851,8 +850,6 @@ class AnvilDeepLearningWorkflow(AnvilWorkflowBase):
             eval.report(write=True, output_dir=output_dir)
 
         logger.info("Evaluation done")
-        # else:
-        #     logger.info("No test set specified, evaluation skipped")
 
 
 _DRIVER_TO_CLASS = {
