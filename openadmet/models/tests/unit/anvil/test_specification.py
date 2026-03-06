@@ -457,10 +457,6 @@ def test_anvilspecification_to_workflow_returns_correct_driver_type(mocker):
         "serial_path": None,
         "freeze_weights": None,
     }
-    assert workflow_dl.feat_kwargs == {
-        "type": "FingerprintFeaturizer",
-        "params": {"fp_type": "ecfp:4"},
-    }
 
 
 def test_anvilspecification_run_writes_provenance_to_resolved_output_dir(

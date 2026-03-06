@@ -78,7 +78,6 @@ def _make_anvil_workflow(
     ensemble=None,
     model_kwargs=None,
     ensemble_kwargs=None,
-    feat_kwargs=None,
     transform=None,
 ):
     """Construct an AnvilWorkflow from real lightweight production components."""
@@ -96,7 +95,6 @@ def _make_anvil_workflow(
         transform=transform,
         model_kwargs=model_kwargs or {},
         ensemble_kwargs=ensemble_kwargs or {},
-        feat_kwargs=feat_kwargs or {},
     )
 
 
@@ -341,26 +339,6 @@ def test_anvil_workflow_ensemble_no_finetuning_succeeds(
     )
     assert isinstance(wf, AnvilWorkflow)
     assert wf.ensemble_kwargs == ensemble_kwargs
-
-
-# feat_kwargs default_factory coverage — any content must pass construction
-@pytest.mark.parametrize(
-    "feat_kwargs",
-    [
-        {},
-        {"type": "FingerprintFeaturizer", "params": {"fp_type": "ecfp:4"}},
-    ],
-    ids=["empty-feat-kwargs", "with-type-and-params"],
-)
-def test_anvil_workflow_feat_kwargs_passthrough(
-    metadata, data_spec, sklearn_feat, feat_kwargs
-):
-    """Test that arbitrary feat_kwargs content does not affect workflow construction."""
-    wf = _make_anvil_workflow(
-        metadata, data_spec, sklearn_feat, feat_kwargs=feat_kwargs
-    )
-    assert isinstance(wf, AnvilWorkflow)
-    assert wf.feat_kwargs == feat_kwargs
 
 
 # ---------------------------------------------------------------------------
