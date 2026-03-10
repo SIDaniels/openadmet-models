@@ -4,7 +4,7 @@
 ## Quality Assurance & AI Policy
 To maintain project quality and respect maintainer bandwidth, please confirm the following:
 
-- [ ] **Manual Verification:** I have manually reviewed and tested the code in this PR. 
+- [ ] **Manual Verification:** I have manually reviewed and tested the code in this PR.
 - [ ] **AI-Assisted Content:** If AI tools were used (e.g., Copilot, ChatGPT), I have personally verified the logic, edge cases, and compliance with the existing codebase. I confirm the code is not a "blind" AI generation.
 - [ ] **Minimal Review:** I believe this PR is in a state that requires minimal intervention or correction from maintainers.
 - [ ] **Scoped Change:** This PR addresses a single, well-scoped issue rather than multiple unrelated changes.
