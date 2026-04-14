@@ -40,7 +40,6 @@ jobs:
         run: "df -h"
       - name: Print Docker details
         run: "docker version || true"
-      - uses: actions/checkout@v4
 
       - name: Additional info about the build
         shell: bash
