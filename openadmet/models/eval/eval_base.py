@@ -1,8 +1,8 @@
 """Base class and utilities for evaluation modules."""
 
 from abc import abstractmethod
-from typing import ClassVar
 from collections.abc import Callable
+from typing import ClassVar
 
 import numpy as np
 from class_registry import ClassRegistry, RegistryKeyError
