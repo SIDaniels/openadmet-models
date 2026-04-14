@@ -1,6 +1,6 @@
+import numpy as np
 import pytest
 
-import numpy as np
 from openadmet.models.eval.binary import PosthocBinaryMetrics
 from openadmet.models.eval.classification import (
     ClassificationMetrics,

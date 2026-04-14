@@ -54,7 +54,7 @@ class AnvilWorkflowBase(BaseModel):
 
     metadata: Metadata
     data_spec: DataSpec
-    transform: Optional[TransformBase] = None  # Optional transform step
+    transform: TransformBase | None = None  # Optional transform step
     split: SplitterBase
     feat: FeaturizerBase
     model: ModelBase

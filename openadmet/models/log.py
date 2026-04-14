@@ -1,8 +1,9 @@
 """Logging configuration for the OpenADMET models package."""
 
+import os
+
 from loguru import logger
 from rich.logging import RichHandler
-import os
 
 
 def is_notebook() -> bool:

@@ -5,8 +5,8 @@ from typing import Any
 from loguru import logger
 from sklearn.model_selection import GridSearchCV
 
-from openadmet.models.trainer.trainer_base import TrainerBase, trainers
 from openadmet.models.drivers import DriverType
+from openadmet.models.trainer.trainer_base import TrainerBase, trainers
 
 
 class SKLearnTrainer(TrainerBase):

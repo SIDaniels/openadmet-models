@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 
 from class_registry import ClassRegistry, RegistryKeyError
-from pydantic import BaseModel, model_validator
 from loguru import logger
+from pydantic import BaseModel, model_validator
 
 splitters = ClassRegistry(unique=True)
 

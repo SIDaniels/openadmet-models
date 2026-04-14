@@ -48,7 +48,7 @@ class MTENNDataset(Dataset):
         self,
         complexes: Iterable[Path],
         y: Iterable[Any] = None,
-        ligand_resname: Union[str, list[str]] = "LIG",
+        ligand_resname: str | list[str] = "LIG",
         ignore_h: bool = True,
     ):
         """
@@ -232,7 +232,7 @@ class MTENNFeaturizer(FeaturizerBase):
 
     """
 
-    ligand_resname: Union[str, list[str]] = "LIG"
+    ligand_resname: str | list[str] = "LIG"
     ignore_h: bool = True
     n_jobs: int = 4
     batch_size: int = 2

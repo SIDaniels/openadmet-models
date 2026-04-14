@@ -1,21 +1,20 @@
 """Neural Pairwise Regressor Model implementation."""
 
+from collections import OrderedDict
+from typing import Any, ClassVar, Optional
+
 import numpy as np
 import torch
-from lightning import pytorch as pl
-from pydantic import field_validator
-from loguru import logger
 from chemprop import models, nn
-from collections import OrderedDict
+from lightning import pytorch as pl
+from loguru import logger
+from pydantic import field_validator
 
-from openadmet.models.architecture.model_base import models as model_registry
 from openadmet.models.architecture.model_base import (
-    LightningModuleBase,
     LightningModelBase,
+    LightningModuleBase,
 )
-
-
-from typing import ClassVar, Any, Optional
+from openadmet.models.architecture.model_base import models as model_registry
 
 
 class NeuralPairwiseRegressorModule(LightningModuleBase):
@@ -217,7 +216,7 @@ class NeuralPairwiseRegressorModel(LightningModelBase):
     lr: float = 1e-4
     n_targets: int = 1
     monitor_metric: str = "val_loss"
-    scaler: Optional[Any] = None
+    scaler: Any | None = None
 
     def train(self, dataloader):
         """

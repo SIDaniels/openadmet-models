@@ -1,11 +1,13 @@
 """Imputation transforms for handling missing data."""
 
-from openadmet.models.transforms.transform_base import TransformBase, transforms
-from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import SimpleImputer, IterativeImputer
+from typing import Literal, Optional
+
 import numpy as np
 from pydantic import field_validator
-from typing import Optional, Literal
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer, SimpleImputer
+
+from openadmet.models.transforms.transform_base import TransformBase, transforms
 
 
 @transforms.register("ImputeTransform")
@@ -29,8 +31,8 @@ class ImputeTransform(TransformBase):
         "mean"  # Default strategy is to replace missing values with the mean
     )
     imputer: Literal["simple", "iterative"] = "simple"  # Can be 'simple' or 'iterative'
-    random_state: Optional[int] = None  # Optional random state for reproducibility
-    imputer_instance: Optional[object] = None  # Placeholder for the imputer instance
+    random_state: int | None = None  # Optional random state for reproducibility
+    imputer_instance: object | None = None  # Placeholder for the imputer instance
 
     @field_validator("strategy")
     def validate_strategy(cls, value):

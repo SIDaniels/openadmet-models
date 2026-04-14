@@ -124,7 +124,7 @@ def _generate_pairwise_df(
 def predict(
     input_path: str,
     input_col: str,
-    model_dir: Union[str, Path, list[Union[str, Path]]],
+    model_dir: str | Path | list[str | Path],
     write_csv: bool = False,
     output_csv: str = None,
     debug: bool = False,

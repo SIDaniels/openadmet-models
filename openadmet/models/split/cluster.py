@@ -1,22 +1,24 @@
 """Cluster-based data splitting implementations."""
 
 import logging
-from pydantic import BaseModel, field_validator, model_validator
 from typing import Literal
-from sklearn.model_selection import GroupShuffleSplit
-from sklearn.cluster import KMeans
-from molfeat.trans import MoleculeTransformer
-from molfeat.trans.fp import FPVecTransformer
+
 import datamol as dm
 import numpy as np
 import pandas as pd
-from openadmet.models.split.split_base import SplitterBase, splitters
+from molfeat.trans import MoleculeTransformer
+from molfeat.trans.fp import FPVecTransformer
+from pydantic import BaseModel, field_validator, model_validator
+from sklearn.cluster import KMeans
+from sklearn.model_selection import GroupShuffleSplit
 from useful_rdkit_utils import (
-    get_butina_clusters,
     get_bemis_murcko_clusters,
+    get_butina_clusters,
     get_scaffold,
     smi2numpy_fp,
 )
+
+from openadmet.models.split.split_base import SplitterBase, splitters
 
 
 @splitters.register("ClusterSplitter")

@@ -1,11 +1,12 @@
 """Base class and utilities for evaluation modules."""
 
 from abc import abstractmethod
-from typing import Callable, ClassVar
+from typing import ClassVar
+from collections.abc import Callable
 
-from loguru import logger
 import numpy as np
 from class_registry import ClassRegistry, RegistryKeyError
+from loguru import logger
 from pydantic import BaseModel
 from scipy.stats import bootstrap
 

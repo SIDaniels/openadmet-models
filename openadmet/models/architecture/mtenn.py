@@ -1,5 +1,6 @@
 """MTENN model implementation."""
 
+import os
 from typing import ClassVar, Optional
 
 import torch
@@ -9,8 +10,6 @@ from mtenn.config import ModelConfig, SchNetRepresentationConfig
 
 from openadmet.models.architecture.model_base import LightningModelBase
 from openadmet.models.architecture.model_base import models as model_registry
-
-import os
 
 
 class MTENNLightningModule(pl.LightningModule):
@@ -190,8 +189,8 @@ class MTENNSchNetModel(LightningModelBase):
 
     # Expose Model Config params
     strategy: str = "concat"
-    pred_readout: Optional[str] = None
-    weights_path: Optional[str] = None
+    pred_readout: str | None = None
+    weights_path: str | None = None
 
     def build(self, scaler=None):
         """

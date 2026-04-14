@@ -1,12 +1,13 @@
 """Scaffold-based data splitting implementations."""
 
 import logging
-from sklearn.model_selection import train_test_split
-from splito import MaxDissimilaritySplit, PerimeterSplit, ScaffoldSplit
+
 import numpy as np
 import pandas as pd
-from openadmet.models.split.split_base import SplitterBase, splitters
+from sklearn.model_selection import train_test_split
+from splito import MaxDissimilaritySplit, PerimeterSplit, ScaffoldSplit
 
+from openadmet.models.split.split_base import SplitterBase, splitters
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

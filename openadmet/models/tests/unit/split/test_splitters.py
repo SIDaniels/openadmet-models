@@ -1,9 +1,9 @@
 import numpy as np
-import pytest
 import pandas as pd
+import pytest
 
-from openadmet.models.split.sklearn import ShuffleSplitter
 from openadmet.models.split.cluster import ClusterSplitter
+from openadmet.models.split.sklearn import ShuffleSplitter
 from openadmet.models.split.split_base import splitters
 from openadmet.models.tests.unit.datafiles import CYP3A4_chembl_pchembl
 

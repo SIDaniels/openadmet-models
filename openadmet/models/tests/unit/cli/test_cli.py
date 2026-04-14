@@ -1,12 +1,13 @@
+import pytest
+from click.testing import CliRunner
+
 from openadmet.models.cli.cli import cli
 from openadmet.models.tests.test_utils import click_success
 from openadmet.models.tests.unit.datafiles import (
     anvil_lgbm_trained_model_dir,
-    pred_test_data_csv,
     basic_anvil_yaml_cv,
+    pred_test_data_csv,
 )
-import pytest
-from click.testing import CliRunner
 
 
 def test_toplevel_runnable():

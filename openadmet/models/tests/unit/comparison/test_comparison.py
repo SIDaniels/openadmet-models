@@ -1,14 +1,15 @@
+import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal
-import numpy as np
+
 from openadmet.models.comparison.compare_base import get_comparison_class
 from openadmet.models.comparison.posthoc import PostHocComparison
 from openadmet.models.tests.unit.datafiles import (
-    cyp2c9_json,
+    anvil_lgbm_trained_model_dir,
     cyp1a2_json,
+    cyp2c9_json,
     cyp3a4_json,
     multi_task_json,
-    anvil_lgbm_trained_model_dir,
 )
 
 

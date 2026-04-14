@@ -14,9 +14,9 @@ from openadmet.models.architecture.lgbm import LGBMRegressorModel
 from openadmet.models.architecture.model_base import ModelBase
 from openadmet.models.inference.inference import load_anvil_model_and_metadata
 from openadmet.models.split.sklearn import ShuffleSplitter
+from openadmet.models.tests.unit.datafiles import ACEH_chembl_pchembl  # chemprop
+from openadmet.models.tests.unit.datafiles import CYP3A4_chembl_pchembl  # lgbm
 from openadmet.models.tests.unit.datafiles import (
-    ACEH_chembl_pchembl,  # chemprop
-    CYP3A4_chembl_pchembl,  # lgbm
     anvil_chemprop_trained_model_dir,
     anvil_lgbm_trained_model_dir,
 )

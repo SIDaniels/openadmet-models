@@ -1,13 +1,14 @@
-from pathlib import Path
-import pandas as pd
 import os
+from pathlib import Path
+
+import pandas as pd
 import pytest
 
 from openadmet.models.inference.inference import predict
 from openadmet.models.tests.unit.datafiles import (
-    pred_test_data_csv,
-    anvil_lgbm_trained_model_dir,
     anvil_chemprop_trained_model_dir,
+    anvil_lgbm_trained_model_dir,
+    pred_test_data_csv,
 )
 
 

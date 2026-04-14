@@ -5,12 +5,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from os import PathLike
 from typing import Any, ClassVar
+
 import joblib
 import torch
 from class_registry import ClassRegistry, RegistryKeyError
 from lightning import pytorch as pl
 from loguru import logger
 from pydantic import BaseModel, field_validator
+
 from openadmet.models.drivers import DriverType
 
 models = ClassRegistry(unique=True)

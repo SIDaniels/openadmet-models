@@ -1,31 +1,27 @@
 """Pairwise featurizer implementation."""
 
+from collections import namedtuple
+from collections.abc import Sequence
+from itertools import chain, combinations, combinations_with_replacement, product
+from random import Random, sample
+from typing import Any, Literal, Type, Union
+
 import numpy as np
 import pandas as pd
 import torch
 from numpy.typing import ArrayLike
-from typing import Literal, Type, Union, Any
-from random import sample
 from pydantic import Field, field_validator, model_validator
-from torch.utils.data import DataLoader, Dataset
 from sklearn.preprocessing import StandardScaler
-from collections.abc import Sequence
-
-from collections.abc import Sequence
-from collections import namedtuple
-from typing import Literal
-from itertools import combinations, combinations_with_replacement, product, chain
-from random import Random
+from torch.utils.data import DataLoader, Dataset
 
 from openadmet.models.features.chemprop import ChemPropFeaturizer
-from openadmet.models.features.feature_base import DeepLearningFeaturizer, featurizers
-from openadmet.models.features.molfeat_fingerprint import FingerprintFeaturizer
-
 from openadmet.models.features.feature_base import (
+    DeepLearningFeaturizer,
     FeaturizerBase,
     featurizers,
     get_featurizer_class,
 )
+from openadmet.models.features.molfeat_fingerprint import FingerprintFeaturizer
 
 
 class PairwiseAugmentedDataset(torch.utils.data.Dataset):

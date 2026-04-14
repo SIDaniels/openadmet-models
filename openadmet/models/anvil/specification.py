@@ -15,8 +15,8 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 from openadmet.models.active_learning.ensemble_base import (
     get_ensemble_class,
 )
-from openadmet.models.drivers import DriverType
 from openadmet.models.architecture.model_base import get_mod_class
+from openadmet.models.drivers import DriverType
 from openadmet.models.eval.eval_base import get_eval_class
 from openadmet.models.features.feature_base import get_featurizer_class
 from openadmet.models.registries import *  # noqa: F401, F403
@@ -72,18 +72,18 @@ class DataSpec(BaseModel):
     """
 
     type: str
-    resource: Optional[str] = None
+    resource: str | None = None
 
-    cat_entry: Optional[str] = None
-    target_cols: Union[str, list[str]]
+    cat_entry: str | None = None
+    target_cols: str | list[str]
     input_col: str
-    anvil_dir: Optional[str] = None
-    dropna: Optional[bool] = False
-    train_resource: Optional[str] = None
-    test_resource: Optional[str] = None
-    val_resource: Optional[str] = None
+    anvil_dir: str | None = None
+    dropna: bool | None = False
+    train_resource: str | None = None
+    test_resource: str | None = None
+    val_resource: str | None = None
 
-    _catalog: Optional[intake.catalog.Catalog] = None
+    _catalog: intake.catalog.Catalog | None = None
     _using_train_test: bool = False
 
     @property
@@ -625,7 +625,7 @@ class ProcedureSpec(SpecBase):
     model: ModelSpec
     ensemble: EnsembleSpec | None = None
     train: TrainerSpec
-    transform: Optional[TransformSpec] = None  # Optional transform step
+    transform: TransformSpec | None = None  # Optional transform step
 
 
 class ReportSpec(SpecBase):
@@ -734,12 +734,14 @@ class AnvilSpecification(BaseModel):
             metadata=self.metadata,
             data_spec=self.data,
             model=self.procedure.model.to_class(),
-            ensemble=self.procedure.ensemble.to_class()
-            if self.procedure.ensemble
-            else None,
-            transform=self.procedure.transform.to_class()
-            if self.procedure.transform
-            else None,
+            ensemble=(
+                self.procedure.ensemble.to_class() if self.procedure.ensemble else None
+            ),
+            transform=(
+                self.procedure.transform.to_class()
+                if self.procedure.transform
+                else None
+            ),
             split=self.procedure.split.to_class(),
             feat=self.procedure.feat.to_class(),
             trainer=self.procedure.train.to_class(),

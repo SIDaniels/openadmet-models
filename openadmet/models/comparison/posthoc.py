@@ -1,15 +1,20 @@
 """PostHoc multi-model comparison implementation."""
 
-import os
 import glob
-import yaml
-import boto3
+import json
+import os
+import warnings
+from itertools import combinations
 from urllib.parse import urlparse
+
+import boto3
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import json
+import tabulate
+import yaml
+from loguru import logger
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
@@ -22,12 +27,8 @@ from reportlab.platypus import (
     TableStyle,
 )
 from scipy import stats
-from scipy.stats import levene, tukey_hsd, ttest_rel
+from scipy.stats import levene, ttest_rel, tukey_hsd
 from statsmodels.stats.anova import AnovaRM
-from itertools import combinations
-import tabulate
-import warnings
-from loguru import logger
 
 from openadmet.models.comparison.compare_base import ComparisonBase, comparisons
 

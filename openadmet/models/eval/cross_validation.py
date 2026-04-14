@@ -3,8 +3,9 @@
 import json
 from collections import defaultdict
 from typing import Any, ClassVar
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 from loguru import logger
 from pydantic import Field
 from scipy.stats import norm
@@ -16,15 +17,15 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import GroupKFold, RepeatedKFold, cross_validate
 
+from openadmet.models.drivers import DriverType
 from openadmet.models.eval.eval_base import EvalBase, evaluators, get_t_true_and_t_pred
 from openadmet.models.eval.regression import (
     RegressionPlots,
     nan_omit_ktau,
     nan_omit_spearmanr,
 )
-from openadmet.models.trainer.lightning import LightningTrainer
 from openadmet.models.eval.utils import _make_stat_caption, _make_stat_dict
-from openadmet.models.drivers import DriverType
+from openadmet.models.trainer.lightning import LightningTrainer
 
 
 def wrap_ktau(y_true, y_pred):

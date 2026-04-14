@@ -1,7 +1,8 @@
 import numpy as np
-import pytest
 import pandas as pd
-from openadmet.models.features.mtenn import MTENNFeaturizer, MTENNDataset
+import pytest
+
+from openadmet.models.features.mtenn import MTENNDataset, MTENNFeaturizer
 from openadmet.models.tests.unit.datafiles import ligand_pose
 
 

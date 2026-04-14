@@ -2,6 +2,7 @@
 
 from collections.abc import Iterable
 from typing import Any, Union
+
 import numpy as np
 import pandas as pd
 from chemprop.data import (
@@ -131,7 +132,7 @@ class ChemPropFeaturizer(DeepLearningFeaturizer):
         DataLoader,
         np.ndarray,
         StandardScaler,
-        Union[MoleculeDataset, ReactionDataset, MulticomponentDataset],
+        MoleculeDataset | ReactionDataset | MulticomponentDataset,
     ]:
         """
         Featurize a list of SMILES strings.

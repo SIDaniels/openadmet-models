@@ -1,5 +1,6 @@
 """TabPFN model implementations."""
 
+import warnings
 from typing import ClassVar, Literal, Optional, Union
 
 import numpy as np
@@ -10,7 +11,6 @@ from tabpfn_extensions.post_hoc_ensembles.sklearn_interface import (
     AutoTabPFNClassifier,
     AutoTabPFNRegressor,
 )
-import warnings
 
 from openadmet.models.architecture.model_base import PickleableModelBase, models
 
@@ -46,7 +46,7 @@ class TabPFNExtensionModelBase(PickleableModelBase):
     mod_class: ClassVar[type]
 
     # TabPFN parameters
-    max_time: Optional[int] = Field(
+    max_time: int | None = Field(
         default=None,
         description="The maximum time to spend on fitting the post hoc ensemble.",
     )
@@ -61,7 +61,7 @@ class TabPFNExtensionModelBase(PickleableModelBase):
         default=False,
         description="Whether to ignore the pretraining limits of the TabPFN base models.",
     )
-    phe_init_args: Optional[dict] = Field(
+    phe_init_args: dict | None = Field(
         default=None,
         description="The initialization arguments for the post hoc ensemble predictor. "
         "See post_hoc_ensembles.pfn_phe.AutoPostHocEnsemblePredictor for more options and all details.",
