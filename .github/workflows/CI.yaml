@@ -40,6 +40,7 @@ jobs:
         with:
           environment-file: devtools/conda-envs/openadmet-models.yaml
           environment-name: openadmet-models
+          cache-environment: true
           condarc: |
             channels:
               - conda-forge
