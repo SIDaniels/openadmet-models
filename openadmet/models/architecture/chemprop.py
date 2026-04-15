@@ -447,7 +447,9 @@ class ChemPropModel(LightningModelBase):
                     logger.info(f"Loading foundation model from {self.foundation_path}")
                     model_path = Path(self.foundation_path)
                     if not model_path.exists():
-                        raise FileNotFoundError(f"Foundation model not found at {model_path}")
+                        raise FileNotFoundError(
+                            f"Foundation model not found at {model_path}"
+                        )
                 foundation_mp = torch.load(model_path, weights_only=True)
                 aggr = nn.MeanAggregation()
                 mp = nn.BondMessagePassing(**foundation_mp["hyper_parameters"])
@@ -458,7 +460,9 @@ class ChemPropModel(LightningModelBase):
                     "Using foundation model overrides settings for depth, message_hidden_dim, messages, and aggregation"
                 )
             elif self.from_chemeleon and self.foundation_path:
-                raise ValueError("Cannot specify both from_chemeleon and user-specified foundation_path")
+                raise ValueError(
+                    "Cannot specify both from_chemeleon and user-specified foundation_path"
+                )
             else:
                 aggregation_cls = (
                     nn.MeanAggregation
