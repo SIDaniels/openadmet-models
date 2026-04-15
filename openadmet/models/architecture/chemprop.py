@@ -203,6 +203,7 @@ class ChemPropModel(LightningModelBase):
     normalized_targets: bool = True
     batch_norm: bool = False
     dropout: float = 0.0
+    foundation_path: str | None = None
     from_chemeleon: bool = False
     monitor_metric: str = "val_loss"
     metric_list: list = ["mse", "mae", "rmse"]
@@ -421,32 +422,43 @@ class ChemPropModel(LightningModelBase):
         """
         if not self.estimator:
             metric_list = [_METRIC_TO_LOSS[metric] for metric in self.metric_list]
-
-            if self.from_chemeleon:
-                logger.info(
-                    "Please cite DOI: 10.48550/arXiv.2506.15792 when using CheMeleon in published work"
-                )
-                ckpt_dir = Path().home() / ".chemprop"
-                ckpt_dir.mkdir(exist_ok=True)
-                model_path = ckpt_dir / "chemeleon_mp.pt"
-                if not model_path.exists():
+            if self.from_chemeleon or self.foundation_path:
+                if self.from_chemeleon:
                     logger.info(
-                        f"Downloading CheMeleon Foundation model from Zenodo (https://zenodo.org/records/15460715) to {model_path}"
+                        "Please cite DOI: 10.48550/arXiv.2506.15792 when using CheMeleon in published work"
                     )
-                    urlretrieve(
-                        r"https://zenodo.org/records/15460715/files/chemeleon_mp.pt",
-                        model_path,
+                    ckpt_dir = Path().home() / ".chemprop"
+                    ckpt_dir.mkdir(exist_ok=True)
+                    model_path = ckpt_dir / "chemeleon_mp.pt"
+                    if not model_path.exists():
+                        logger.info(
+                            f"Downloading CheMeleon Foundation model from Zenodo (https://zenodo.org/records/15460715) to {model_path}"
+                        )
+                        urlretrieve(
+                            r"https://zenodo.org/records/15460715/files/chemeleon_mp.pt",
+                            model_path,
+                        )
+                    else:
+                        logger.info(f"Loading cached CheMeleon from {model_path}")
+                    logger.warning(
+                        "Using CheMeleon overrides settings for depth, message_hidden_dim, messages, and aggregation"
                     )
-                else:
-                    logger.info(f"Loading cached CheMeleon from {model_path}")
+                elif self.foundation_path:
+                    logger.info(f"Loading foundation model from {self.foundation_path}")
+                    model_path = Path(self.foundation_path)
+                    if not model_path.exists():
+                        raise FileNotFoundError(f"Foundation model not found at {model_path}")
+                foundation_mp = torch.load(model_path, weights_only=True)
                 aggr = nn.MeanAggregation()
-                chemeleon_mp = torch.load(model_path, weights_only=True)
-                mp = nn.BondMessagePassing(**chemeleon_mp["hyper_parameters"])
-                mp.load_state_dict(chemeleon_mp["state_dict"])
+                mp = nn.BondMessagePassing(**foundation_mp["hyper_parameters"])
+                mp.load_state_dict(foundation_mp["state_dict"])
+                aggr = nn.MeanAggregation()
                 self.message_hidden_dim = mp.output_dim
                 logger.warning(
-                    "Using CheMeleon overrides settings for depth, message_hidden_dim, messages, and aggregation"
+                    "Using foundation model overrides settings for depth, message_hidden_dim, messages, and aggregation"
                 )
+            elif self.from_chemeleon and self.foundation_path:
+                raise ValueError("Cannot specify both from_chemeleon and user-specified foundation_path")
             else:
                 aggregation_cls = (
                     nn.MeanAggregation
