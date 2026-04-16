@@ -203,7 +203,7 @@ class ChemPropModel(LightningModelBase):
     normalized_targets: bool = True
     batch_norm: bool = False
     dropout: float = 0.0
-    foundation_path: str | None = None
+    from_foundation: str | None = None
     from_chemeleon: bool = False
     monitor_metric: str = "val_loss"
     metric_list: list = ["mse", "mae", "rmse"]
@@ -242,6 +242,11 @@ class ChemPropModel(LightningModelBase):
         self._explicit_init_fields = explicit_init_fields.intersection(
             type(self).model_fields.keys()
         )
+        # Handle backwards compatibility for from_chemeleon and from_foundation fields
+        if self.from_foundation != 'chemeleon' and self.from_chemeleon:
+            raise ValueError("Cannot specify both from_chemeleon and user-specified from_foundation")
+        if not self.from_foundation and self.from_chemeleon:
+            self.from_foundation = 'chemeleon'
 
     @model_validator(mode="after")
     def resolve_hyperparameters(self) -> "ChemPropModel":
@@ -422,11 +427,11 @@ class ChemPropModel(LightningModelBase):
         """
         if not self.estimator:
             metric_list = [_METRIC_TO_LOSS[metric] for metric in self.metric_list]
-            if self.from_chemeleon and self.foundation_path:
+            if self.from_chemeleon and self.from_foundation:
                 raise ValueError(
-                    "Cannot specify both from_chemeleon and user-specified foundation_path"
+                    "Cannot specify both from_chemeleon and user-specified from_foundation"
                 )
-            elif self.from_chemeleon or self.foundation_path:
+            elif self.from_chemeleon or self.from_foundation:
                 if self.from_chemeleon:
                     logger.info(
                         "Please cite DOI: 10.48550/arXiv.2506.15792 when using CheMeleon in published work"
@@ -448,8 +453,8 @@ class ChemPropModel(LightningModelBase):
                         "Using CheMeleon overrides settings for depth, message_hidden_dim, messages, and aggregation"
                     )
                 else:
-                    logger.info(f"Loading foundation model from {self.foundation_path}")
-                    model_path = Path(self.foundation_path)
+                    logger.info(f"Loading foundation model from {self.from_foundation}")
+                    model_path = Path(self.from_foundation)
                     if not model_path.exists():
                         raise FileNotFoundError(
                             f"Foundation model not found at {model_path}"
