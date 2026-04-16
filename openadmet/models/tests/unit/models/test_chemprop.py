@@ -1,6 +1,10 @@
 import numpy as np
 import pytest
+import sys
 import torch
+
+from chemprop import nn
+from lightning import pytorch as pl
 
 from openadmet.models.architecture.chemprop import ChemPropModel
 
@@ -236,3 +240,25 @@ def test_chemprop_freeze_weights():
     # Check layer 0 of FFN is frozen
     for p in model.estimator.predictor.ffn[0].parameters():
         assert p.requires_grad is False
+
+
+def test_chemprop_builds_from_legacy_pickled_foundation(tmp_path):
+    """Test loading a legacy pickled foundation model from a __main__ class."""
+
+    MaskedDescriptorsMPNN = type("MaskedDescriptorsMPNN", (pl.LightningModule,), {})
+    MaskedDescriptorsMPNN.__module__ = "__main__"
+    setattr(sys.modules["__main__"], "MaskedDescriptorsMPNN", MaskedDescriptorsMPNN)
+
+    foundation = MaskedDescriptorsMPNN()
+    foundation.message_passing = nn.BondMessagePassing(d_h=64, depth=2, dropout=0.0)
+
+    foundation_path = tmp_path / "best.pt"
+    torch.save(foundation, foundation_path)
+
+    model = ChemPropModel(foundation_path=str(foundation_path))
+    model.build()
+
+    assert model.message_hidden_dim == foundation.message_passing.output_dim
+    assert model.estimator.message_passing.state_dict().keys() == foundation.message_passing.state_dict().keys()
+    for key, value in foundation.message_passing.state_dict().items():
+        assert torch.equal(model.estimator.message_passing.state_dict()[key], value)
