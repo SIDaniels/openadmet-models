@@ -34,7 +34,9 @@ def _iter_checkpoint_globals(path: Path):
         return
 
     with zipfile.ZipFile(path) as zf:
-        pkl_name = next((name for name in zf.namelist() if name.endswith("data.pkl")), None)
+        pkl_name = next(
+            (name for name in zf.namelist() if name.endswith("data.pkl")), None
+        )
         if pkl_name is None:
             return
 
@@ -503,7 +505,9 @@ class ChemPropModel(LightningModelBase):
         if not self.estimator:
             metric_list = [_METRIC_TO_LOSS[metric] for metric in self.metric_list]
             if self.from_chemeleon and self.foundation_path:
-                raise ValueError("Cannot specify both from_chemeleon and user-specified foundation_path")
+                raise ValueError(
+                    "Cannot specify both from_chemeleon and user-specified foundation_path"
+                )
             elif self.from_chemeleon or self.foundation_path:
                 if self.from_chemeleon:
                     logger.info(

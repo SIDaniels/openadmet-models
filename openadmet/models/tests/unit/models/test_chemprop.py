@@ -259,6 +259,9 @@ def test_chemprop_builds_from_legacy_pickled_foundation(tmp_path):
     model.build()
 
     assert model.message_hidden_dim == foundation.message_passing.output_dim
-    assert model.estimator.message_passing.state_dict().keys() == foundation.message_passing.state_dict().keys()
+    assert (
+        model.estimator.message_passing.state_dict().keys()
+        == foundation.message_passing.state_dict().keys()
+    )
     for key, value in foundation.message_passing.state_dict().items():
         assert torch.equal(model.estimator.message_passing.state_dict()[key], value)
