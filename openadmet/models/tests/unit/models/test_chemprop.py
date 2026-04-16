@@ -1,10 +1,6 @@
 import numpy as np
 import pytest
-import sys
 import torch
-
-from chemprop import nn
-from lightning import pytorch as pl
 
 from openadmet.models.architecture.chemprop import ChemPropModel
 
@@ -240,6 +236,7 @@ def test_chemprop_freeze_weights():
     # Check layer 0 of FFN is frozen
     for p in model.estimator.predictor.ffn[0].parameters():
         assert p.requires_grad is False
+<<<<<<< HEAD
 
 
 def test_chemprop_builds_from_legacy_pickled_foundation(tmp_path):
@@ -265,3 +262,5 @@ def test_chemprop_builds_from_legacy_pickled_foundation(tmp_path):
     )
     for key, value in foundation.message_passing.state_dict().items():
         assert torch.equal(model.estimator.message_passing.state_dict()[key], value)
+=======
+>>>>>>> c386770 (Removed multi-case handler, changed to script to modify chemprop pt files to get weights saved instead)

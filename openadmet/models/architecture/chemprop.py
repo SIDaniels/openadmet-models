@@ -1,11 +1,7 @@
 """ChemProp and Chemeleon model implementations."""
 
-import importlib
 import json
-import pickletools
-import sys
 import types
-import zipfile
 from pathlib import Path
 from typing import ClassVar
 from urllib.request import urlretrieve
@@ -26,84 +22,6 @@ _METRIC_TO_LOSS = {
     "mae": nn.metrics.MAE(),
     "rmse": nn.metrics.RMSE(),
 }
-
-
-def _iter_checkpoint_globals(path: Path):
-    """Yield global pickle references from a Torch checkpoint archive."""
-    if not zipfile.is_zipfile(path):
-        return
-
-    with zipfile.ZipFile(path) as zf:
-        pkl_name = next(
-            (name for name in zf.namelist() if name.endswith("data.pkl")), None
-        )
-        if pkl_name is None:
-            return
-
-        seen = set()
-        for op, arg, _ in pickletools.genops(zf.read(pkl_name)):
-            if op.name != "GLOBAL" or not isinstance(arg, str):
-                continue
-
-            module_name, object_name = arg.split(" ", 1)
-            if (module_name, object_name) in seen:
-                continue
-
-            seen.add((module_name, object_name))
-            yield module_name, object_name
-
-
-def _make_main_placeholder(object_name: str):
-    """Create a lightweight LightningModule placeholder for legacy __main__ classes."""
-    placeholder = getattr(sys.modules["__main__"], object_name, None)
-    if placeholder is not None:
-        return placeholder
-
-    placeholder = type(object_name, (pl.LightningModule,), {})
-    placeholder.__module__ = "__main__"
-    setattr(sys.modules["__main__"], object_name, placeholder)
-    return placeholder
-
-
-def _get_checkpoint_safe_globals(path: Path) -> list[object]:
-    """Build a safe-globals allowlist for loading trusted legacy checkpoints."""
-    safe_globals = []
-
-    for module_name, object_name in _iter_checkpoint_globals(path):
-        if module_name == "__builtin__":
-            module_name = "builtins"
-
-        if module_name == "__main__":
-            obj = _make_main_placeholder(object_name)
-        else:
-            try:
-                obj = getattr(importlib.import_module(module_name), object_name)
-            except (ImportError, AttributeError):
-                continue
-
-        if hasattr(obj, "__module__") and hasattr(obj, "__qualname__"):
-            safe_globals.append(obj)
-
-    return safe_globals
-
-
-def _load_foundation_message_passing(path: Path):
-    """Load message-passing weights from a foundation checkpoint."""
-    with torch.serialization.safe_globals(_get_checkpoint_safe_globals(path)):
-        foundation_model = torch.load(path, map_location="cpu", weights_only=True)
-
-    if isinstance(foundation_model, dict):
-        mp = nn.BondMessagePassing(**foundation_model["hyper_parameters"])
-        mp.load_state_dict(foundation_model["state_dict"])
-        return mp
-
-    if hasattr(foundation_model, "message_passing"):
-        return foundation_model.message_passing
-
-    raise TypeError(
-        "Foundation checkpoint must contain either a message_passing module or "
-        "a dict with hyper_parameters and state_dict."
-    )
 
 
 def configure_optimizers(self):
@@ -533,24 +451,14 @@ class ChemPropModel(LightningModelBase):
                     logger.info(f"Loading foundation model from {self.foundation_path}")
                     model_path = Path(self.foundation_path)
                     if not model_path.exists():
-                        raise FileNotFoundError(
-                            f"Foundation model not found at {model_path}"
-                        )
-                foundation_mp = torch.load(model_path, weights_only=True)
+                        raise FileNotFoundError(f"Foundation model not found at {model_path}")
+                foundation_mp = torch.load(model_path, weights_only=False)
                 aggr = nn.MeanAggregation()
-                if self.from_chemeleon:
-                    foundation_mp = torch.load(model_path, weights_only=False)
-                    mp = nn.BondMessagePassing(**foundation_mp["hyper_parameters"])
-                    mp.load_state_dict(foundation_mp["state_dict"])
-                else:
-                    mp = _load_foundation_message_passing(model_path)
+                mp = nn.BondMessagePassing(**foundation_mp["hyper_parameters"])
+                mp.load_state_dict(foundation_mp["state_dict"])
                 self.message_hidden_dim = mp.output_dim
                 logger.warning(
                     "Using foundation model overrides settings for depth, message_hidden_dim, messages, and aggregation"
-                )
-            elif self.from_chemeleon and self.foundation_path:
-                raise ValueError(
-                    "Cannot specify both from_chemeleon and user-specified foundation_path"
                 )
             else:
                 aggregation_cls = (
