@@ -243,12 +243,10 @@ class ChemPropModel(LightningModelBase):
             type(self).model_fields.keys()
         )
         # Handle backwards compatibility for from_chemeleon and from_foundation fields
-        if self.from_foundation != "chemeleon" and self.from_chemeleon:
-            raise ValueError(
-                "Cannot specify both from_chemeleon and user-specified from_foundation"
-            )
-        if not self.from_foundation and self.from_chemeleon:
-            self.from_foundation = "chemeleon"
+        if self.from_foundation != 'chemeleon' and self.from_chemeleon:
+            raise ValueError(f"Cannot specify both from_chemeleon and user-specified from_foundation: {self.from_foundation}")  
+        if self.from_chemeleon and self.from_foundation is None:
+            self.from_foundation = 'chemeleon'
 
     @model_validator(mode="after")
     def resolve_hyperparameters(self) -> "ChemPropModel":
@@ -429,12 +427,8 @@ class ChemPropModel(LightningModelBase):
         """
         if not self.estimator:
             metric_list = [_METRIC_TO_LOSS[metric] for metric in self.metric_list]
-            if self.from_chemeleon and self.from_foundation:
-                raise ValueError(
-                    "Cannot specify both from_chemeleon and user-specified from_foundation"
-                )
-            elif self.from_chemeleon or self.from_foundation:
-                if self.from_chemeleon:
+            if self.from_foundation:
+                if self.from_foundation == "chemeleon":
                     logger.info(
                         "Please cite DOI: 10.48550/arXiv.2506.15792 when using CheMeleon in published work"
                     )
