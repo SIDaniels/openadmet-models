@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from openadmet.models.architecture.chemprop import ChemPropModel
-
+from openadmet.models.tests.unit.datafiles import foundation_weights
 
 def test_chemprop_hyperparameters_overrides():
     """Test that ChemPropModel accepts overrides."""
@@ -260,23 +260,11 @@ def test_chemprop_load_weights():
     """Test that load_weights correctly loads state dict."""
 
     # Load weights
-    model = ChemPropModel(from_foundation="test_data/best_cp.pt")
+    model = ChemPropModel(from_foundation=foundation_weights)
     model.build()
 
-    weights = torch.load("test_data/best_cp.pt")
-    assert torch.all(
-        model.estimator.state_dict()["message_passing.W_i.weight"]
-        == weights["state_dict"]["W_i.weight"]
-    )
-    assert torch.all(
-        model.estimator.state_dict()["message_passing.W_o.weight"]
-        == weights["state_dict"]["W_o.weight"]
-    )
-    assert torch.all(
-        model.estimator.state_dict()["message_passing.W_h.weight"]
-        == weights["state_dict"]["W_h.weight"]
-    )
-    assert torch.all(
-        model.estimator.state_dict()["message_passing.W_o.bias"]
-        == weights["state_dict"]["W_o.bias"]
-    )
+    weights = torch.load(foundation_weights)
+    assert torch.all(model.estimator.state_dict()['message_passing.W_i.weight'] == weights['state_dict']['W_i.weight'])
+    assert torch.all(model.estimator.state_dict()['message_passing.W_o.weight'] == weights['state_dict']['W_o.weight'])
+    assert torch.all(model.estimator.state_dict()['message_passing.W_h.weight'] == weights['state_dict']['W_h.weight'])
+    assert torch.all(model.estimator.state_dict()['message_passing.W_o.bias'] == weights['state_dict']['W_o.bias'])
