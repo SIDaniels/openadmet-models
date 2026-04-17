@@ -236,3 +236,27 @@ def test_chemprop_freeze_weights():
     # Check layer 0 of FFN is frozen
     for p in model.estimator.predictor.ffn[0].parameters():
         assert p.requires_grad is False
+
+def test_chemprop_load_weights_invalid_path():
+    """Test that load_weights raises FileNotFoundError for invalid path."""
+    model = ChemPropModel(from_foundation="doesnt_exist.pt")
+    with pytest.raises(FileNotFoundError, match="Foundation model not found at doesnt_exist.pt"):
+        model.build("non_existent_file.pt")
+
+def test_chemprop_chemeleon_and_foundation_mutual_exclusivity():
+    """Test that from_chemeleon and from_foundation are mutually exclusive."""
+    with pytest.raises(ValueError, match="Cannot specify both from_chemeleon and user-specified from_foundation"):
+        ChemPropModel(from_chemeleon=True, from_foundation="custom_model")
+
+def test_chemprop_load_weights():
+    """Test that load_weights correctly loads state dict."""
+
+    # Load weights
+    model = ChemPropModel(from_foundation='test_data/best_cp.pt')
+    model.build()
+
+    weights = torch.load("test_data/best_cp.pt")
+    assert torch.all(model.estimator.state_dict()['message_passing.W_i.weight'] == weights['state_dict']['W_i.weight'])
+    assert torch.all(model.estimator.state_dict()['message_passing.W_o.weight'] == weights['state_dict']['W_o.weight'])
+    assert torch.all(model.estimator.state_dict()['message_passing.W_h.weight'] == weights['state_dict']['W_h.weight'])
+    assert torch.all(model.estimator.state_dict()['message_passing.W_o.bias'] == weights['state_dict']['W_o.bias'])
